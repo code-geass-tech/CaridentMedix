@@ -1,5 +1,4 @@
-﻿using CaridentMedix.Server.Models;
-using CliWrap;
+using CaridentMedix.Server.Models;
 using Compunet.YoloV8;
 using Compunet.YoloV8.Plotting;
 using Microsoft.AspNetCore.Authorization;
@@ -7,6 +6,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SixLabors.ImageSharp;
+using YoloDotNet;
+using YoloDotNet.Extensions;
 using Image = SixLabors.ImageSharp.Image;
 
 namespace CaridentMedix.Server.Controllers;
@@ -20,33 +21,27 @@ public class ImageController(
     ApplicationDbContext db) : ControllerBase
 {
     /// <summary>
-    ///     Analyzes an uploaded image using the YOLO model and returns the analysis result.
+    ///     Analyzes an uploaded image using the YOLO model using an alternative library and returns the analysis result.
     /// </summary>
     /// <param name="file">The image file to be analyzed.</param>
-    /// <param name="options">
-    ///     Optional parameter for specifying the detection plotting options. If not provided, default
-    ///     options will be used.
-    /// </param>
     /// <returns>
     ///     Returns an IActionResult:
     ///     - BadRequest if the YOLO model is not found.
     ///     - Unauthorized if the user is not found.
     ///     - Ok with the image analysis result if the image is successfully analyzed.
     /// </returns>
-    // [Authorize]
+    [Authorize]
     [HttpPost]
-    public async Task<IActionResult> AnalyzeImageAsync(IFormFile file)
+    public async Task<IActionResult> AnalyzeImageAlternativeAsync(IFormFile file)
     {
         if (string.IsNullOrEmpty(configuration["YOLO:Model"]))
             return BadRequest("YOLO model not found.");
 
-        // var user = await userManager.GetUserAsync(User);
-        // if (user is null)
-        //     return Unauthorized();
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+            return Unauthorized();
 
-        var id = "test";
-
-        var userIdPath = Path.Combine("images", id);
+        var userIdPath = Path.Combine("images", user.Id);
         var basePath = Path.Combine("wwwroot", userIdPath);
         Directory.CreateDirectory(basePath);
 
@@ -56,17 +51,11 @@ public class ImageController(
         await using var stream = new FileStream(path, FileMode.Create);
         await file.CopyToAsync(stream);
 
-        using var predictor = new YoloV8(configuration["YOLO:Model"]!);
+        using var predictor = YoloV8Predictor.Create(configuration["YOLO:Model"]!);
         using var image = await Image.LoadAsync(file.OpenReadStream());
 
         var result = await predictor.DetectAsync(image);
         var plot = await result.PlotImageAsync(image);
-
-        var cliResult = Cli.Wrap("yolo")
-            .WithArguments([
-                "predict", "save_txt=True", "save_conf=True",
-                $"model={configuration["YOLO:Model"]}", $"source={path}",
-            ]);
 
         var plottedPath = Path.Combine(basePath, $"plotted_{fileName}");
         await using var plotStream = new FileStream(plottedPath, FileMode.Create);
@@ -75,8 +64,8 @@ public class ImageController(
         var imageResult = new Models.Image
         {
             Name = fileName,
-            OriginalImagePath = $"images/{id}/{fileName}",
-            PlottedImagePath = $"images/{id}/plotted_{fileName}",
+            OriginalImagePath = $"images/{user.Id}/{fileName}",
+            PlottedImagePath = $"images/{user.Id}/plotted_{fileName}",
             CreatedAt = DateTimeOffset.UtcNow,
             Width = result.Image.Width,
             Height = result.Image.Height,
@@ -89,6 +78,72 @@ public class ImageController(
                 Width = box.Bounds.Width,
                 X = box.Bounds.X,
                 Y = box.Bounds.Y
+            }).ToList()
+        };
+
+        await db.Images.AddAsync(imageResult);
+        await db.SaveChangesAsync();
+
+        return Ok(imageResult);
+    }
+
+    /// <summary>
+    ///     Analyzes an uploaded image using the YOLO model and returns the analysis result.
+    /// </summary>
+    /// <param name="file">The image file to be analyzed.</param>
+    /// <returns>
+    ///     Returns an IActionResult:
+    ///     - BadRequest if the YOLO model is not found.
+    ///     - Unauthorized if the user is not found.
+    ///     - Ok with the image analysis result if the image is successfully analyzed.
+    /// </returns>
+    [Authorize]
+    [HttpPost]
+    public async Task<IActionResult> AnalyzeImageAsync(IFormFile file)
+    {
+        if (string.IsNullOrEmpty(configuration["YOLO:Model"]))
+            return BadRequest("YOLO model not found.");
+
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+            return Unauthorized();
+
+        var userIdPath = Path.Combine("images", user.Id);
+        var basePath = Path.Combine("wwwroot", userIdPath);
+        Directory.CreateDirectory(basePath);
+
+        var fileName = $"{DateTimeOffset.Now.ToUnixTimeSeconds()}_{file.FileName}";
+
+        var path = Path.Combine(basePath, fileName);
+        var plottedPath = Path.Combine(basePath, $"plotted_{fileName}");
+
+        await using var stream = new FileStream(path, FileMode.Create);
+        await file.CopyToAsync(stream);
+
+        using var yolo = new Yolo(configuration["YOLO:Model"]!, false);
+        using var image = await Image.LoadAsync(file.OpenReadStream());
+        var results = yolo.RunObjectDetection(image);
+
+        image.Draw(results);
+        await image.SaveAsync(plottedPath);
+
+        var imageResult = new Models.Image
+        {
+            Name = fileName,
+            OriginalImagePath = $"images/{user.Id}/{fileName}",
+            PlottedImagePath = $"images/{user.Id}/plotted_{fileName}",
+            CreatedAt = DateTimeOffset.UtcNow,
+            Width = image.Width,
+            Height = image.Height,
+            Detections = results.Select(x => new Detection
+            {
+                ClassId = x.Label.Index,
+                ClassName = x.Label.Name,
+                Confidence = x.Confidence,
+                Height = x.BoundingBox.Height,
+                Width = x.BoundingBox.Width,
+                X = x.BoundingBox.X,
+                Y = x.BoundingBox.Y
             }).ToList()
         };
 

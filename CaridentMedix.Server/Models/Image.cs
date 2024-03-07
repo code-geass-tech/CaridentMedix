@@ -1,60 +1,47 @@
-﻿using SixLabors.ImageSharp;
+﻿namespace CaridentMedix.Server.Models;
 
-namespace CaridentMedix.Server.Models;
-
+/// <summary>
+///     Represents an image uploaded by the user.
+/// </summary>
 public class Image
 {
-    public DateTimeOffset CreatedAt { get; set; }
+    /// <summary>
+    ///     The date and time the image was created.
+    /// </summary>
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
+    /// <summary>
+    ///     The height of the image.
+    /// </summary>
     public int Height { get; set; }
 
+    /// <summary>
+    ///     The unique identifier of the image.
+    /// </summary>
     public int Id { get; set; }
 
+    /// <summary>
+    ///     The width of the image.
+    /// </summary>
     public int Width { get; set; }
 
+    /// <summary>
+    ///     A list of detections found in the image.
+    /// </summary>
     public virtual List<Detection> Detections { get; set; } = [];
 
+    /// <summary>
+    ///     The name of the image.
+    /// </summary>
     public string Name { get; set; } = null!;
 
+    /// <summary>
+    ///     The path to the original image.
+    /// </summary>
     public string OriginalImagePath { get; set; } = null!;
 
+    /// <summary>
+    ///     The path to the plotted image.
+    /// </summary>
     public string PlottedImagePath { get; set; } = null!;
-}
-
-public class Detection
-{
-    public float Confidence { get; set; }
-
-    public int ClassId { get; set; }
-
-    public int Height { get; set; }
-
-    public int Id { get; set; }
-
-    public int Width { get; set; }
-
-    public int X { get; set; }
-
-    public int Y { get; set; }
-
-    public Rectangle Bounds => new(X, Y, Width, Height);
-
-    public string ClassName { get; set; } = null!;
-}
-
-public class DataReport
-{
-    public virtual ApplicationUser User { get; set; } = null!;
-
-    public virtual Clinic SubmittedClinic { get; set; }
-
-    public DateTimeOffset CreatedAt { get; set; }
-
-    public int Id { get; set; }
-
-    public virtual List<Image> Images { get; set; } = [];
-
-    public string Description { get; set; } = null!;
-
-    public string Title { get; set; }
 }

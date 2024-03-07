@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using CaridentMedix.Server.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +16,7 @@ public class ClinicController(
     UserManager<ApplicationUser> userManager,
     ApplicationDbContext db) : ControllerBase
 {
-    // [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<IActionResult> AddClinicAsync(ClinicModel clinic)
     {
@@ -27,6 +28,24 @@ public class ClinicController(
         return Ok(clinic);
     }
 
+    /// <summary>
+    ///     Asynchronously retrieves a list of clinics based on the provided search parameters.
+    /// </summary>
+    /// <param name="generalSearch">A general search term that is used to search across multiple fields.</param>
+    /// <param name="dentistName">A specific search term for the name of a dentist associated with a clinic.</param>
+    /// <param name="name">A specific search term for the name of a clinic.</param>
+    /// <param name="address">A specific search term for the address of a clinic.</param>
+    /// <param name="description">A specific search term for the description of a clinic.</param>
+    /// <param name="email">A specific search term for the email of a clinic.</param>
+    /// <param name="imagePath">A specific search term for the image path of a clinic.</param>
+    /// <param name="phoneNumber">A specific search term for the phone number of a clinic.</param>
+    /// <param name="website">A specific search term for the website of a clinic.</param>
+    /// <returns>
+    ///     A task that represents the asynchronous operation. The task result contains an IActionResult that can be one of the
+    ///     following:
+    ///     - A result that represents a status code 200 (OK) with a list of clinics.
+    ///     - A result that represents a status code 500 (Internal Server Error) if an exception was thrown.
+    /// </returns>
     [HttpGet]
     public async Task<IActionResult> GetClinicsAsync(string? generalSearch, string? dentistName, string? name,
         string? address, string? description, string? email, string? imagePath, string? phoneNumber, string? website)
@@ -51,7 +70,8 @@ public class ClinicController(
                 clinic.Dentists.Any(dentist => dentist.Name == dentistName));
         }
 
-        if (!string.IsNullOrEmpty(name)) clinicsQuery = clinicsQuery.Where(clinic => clinic.Name.Contains(name));
+        if (!string.IsNullOrEmpty(name))
+            clinicsQuery = clinicsQuery.Where(clinic => clinic.Name.Contains(name));
 
         if (!string.IsNullOrEmpty(address))
             clinicsQuery = clinicsQuery.Where(clinic => clinic.Address.Contains(address));
@@ -59,7 +79,8 @@ public class ClinicController(
         if (!string.IsNullOrEmpty(description))
             clinicsQuery = clinicsQuery.Where(clinic => clinic.Description!.Contains(description));
 
-        if (!string.IsNullOrEmpty(email)) clinicsQuery = clinicsQuery.Where(clinic => clinic.Email!.Contains(email));
+        if (!string.IsNullOrEmpty(email))
+            clinicsQuery = clinicsQuery.Where(clinic => clinic.Email!.Contains(email));
 
         if (!string.IsNullOrEmpty(imagePath))
             clinicsQuery = clinicsQuery.Where(clinic => clinic.ImagePath!.Contains(imagePath));
