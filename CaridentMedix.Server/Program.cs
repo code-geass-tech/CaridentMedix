@@ -6,13 +6,19 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
 
+var conStrBuilder = new NpgsqlConnectionStringBuilder(configuration.GetConnectionString("DefaultConnection"))
+{
+    Password = configuration["DbPassword"]
+};
+
 builder.Services
     .AddDbContext<ApplicationDbContext>(options => options
-        .UseNpgsql(configuration.GetConnectionString("DefaultConnection"))
+        .UseNpgsql(conStrBuilder.ConnectionString)
         .UseLazyLoadingProxies())
     .AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
@@ -98,10 +104,9 @@ if (app.Environment.IsDevelopment())
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
     if (args.Contains("--reset-db"))
-    {
         db.Database.EnsureDeleted();
-        db.Database.EnsureCreated();
-    }
+
+    db.Database.EnsureCreated();
 
     app.UseSwagger();
     app.UseSwaggerUI();
@@ -115,6 +120,5 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
-
 
 app.Run();
