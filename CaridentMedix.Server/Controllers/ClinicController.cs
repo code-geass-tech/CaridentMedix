@@ -7,7 +7,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CaridentMedix.Server.Controllers;
 
-/// <inheritdoc />
+/// <summary>
+///     ClinicController is a controller that handles operations related to clinics.
+/// </summary>
 [ApiController]
 [Route("[controller]/[action]")]
 public class ClinicController(
@@ -16,6 +18,16 @@ public class ClinicController(
     UserManager<ApplicationUser> userManager,
     ApplicationDbContext db) : ControllerBase
 {
+    /// <summary>
+    ///     Adds a new clinic asynchronously.
+    /// </summary>
+    /// <param name="clinic">The clinic model to be added.</param>
+    /// <returns>
+    ///     A task that represents the asynchronous operation. The task result contains an IActionResult that can be one of the
+    ///     following:
+    ///     - A result that represents status code 200 (OK) with the added clinic.
+    ///     - A result that represents status code 500 (Internal Server Error) if an exception was thrown.
+    /// </returns>
     [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<IActionResult> AddClinicAsync(ClinicModel clinic)
@@ -26,6 +38,60 @@ public class ClinicController(
         await db.SaveChangesAsync();
 
         return Ok(clinic);
+    }
+
+    /// <summary>
+    ///     Asynchronously adds a user to the clinic admin role.
+    /// </summary>
+    /// <param name="userId">The user's unique identifier.</param>
+    /// <param name="clinicId">The clinic's unique identifier.</param>
+    /// <returns>An IActionResult that represents the result of the AddUserToClinicAdmin action.</returns>
+    [HttpPost]
+    [Authorize]
+    public async Task<IActionResult> AddUserToClinicAdminAsync(string userId, int clinicId)
+    {
+        var currentUser = await userManager.GetUserAsync(User);
+        if (currentUser is null) return Unauthorized();
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null) return NotFound();
+
+        var clinic = await db.Clinics
+            .Include(clinic => clinic.Users)
+            .FirstOrDefaultAsync(clinic => clinic.Id == clinicId);
+        if (clinic is null) return NotFound();
+
+        if (clinic.Users!.Any(x => x.Id == user.Id) && !await userManager.IsInRoleAsync(currentUser, "Admin"))
+            return Unauthorized();
+
+        clinic.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        return Ok();
+    }
+
+    /// <summary>
+    ///     Asynchronously retrieves a list of all clinics.
+    /// </summary>
+    /// <param name="latitude">The latitude of the user's location.</param>
+    /// <param name="longitude">The longitude of the user's location.</param>
+    /// <returns>The list of clinics ordered by distance from the user's location.</returns>
+    public async Task<IActionResult> FindNearbyClinics(float latitude, float longitude)
+    {
+        var clinics = await db.Clinics.ToListAsync();
+        var clinicModels = clinics.Select(mapper.Map<ClinicModel>).ToList();
+
+        foreach (var clinic in clinicModels)
+        {
+            clinic.Distance = Distance(clinic.Longitude, clinic.Latitude);
+        }
+
+        clinicModels = clinicModels.OrderBy(clinic => clinic.Distance).ToList();
+
+        return Ok(clinicModels);
+
+        double Distance(float clinicLongitude, float clinicLatitude)
+            => Math.Sqrt(Math.Pow(clinicLongitude - longitude, 2) + Math.Pow(clinicLatitude - latitude, 2));
     }
 
     /// <summary>
@@ -100,6 +166,8 @@ public class ClinicController(
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
     public class ClinicModel
     {
+        public double Distance { get; set; }
+
         public float Latitude { get; init; }
 
         public float Longitude { get; init; }

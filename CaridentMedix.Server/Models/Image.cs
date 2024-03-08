@@ -6,6 +6,11 @@
 public class Image
 {
     /// <summary>
+    ///     The user who uploaded the image.
+    /// </summary>
+    public virtual ApplicationUser User { get; set; } = null!;
+
+    /// <summary>
     ///     The date and time the image was created.
     /// </summary>
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

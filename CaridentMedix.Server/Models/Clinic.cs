@@ -8,6 +8,8 @@ public class Clinic
 
     public int Id { get; set; }
 
+    public virtual List<ApplicationUser> Users { get; set; } = [];
+
     public virtual List<DataReport> DataReports { get; set; } = [];
 
     public virtual List<Dentist> Dentists { get; set; } = [];

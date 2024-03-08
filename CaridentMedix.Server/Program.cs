@@ -108,6 +108,19 @@ if (app.Environment.IsDevelopment())
 
     db.Database.EnsureCreated();
 
+    // Create an admin user if one does not exist
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    var adminUser = await userManager.FindByNameAsync("admin");
+    if (adminUser is null)
+    {
+        adminUser = new ApplicationUser
+        {
+            UserName = configuration["Admin:Username"],
+            Email = configuration["Admin:Email"],
+        };
+        await userManager.CreateAsync(adminUser, configuration["Admin:Password"]);
+    }
+
     app.UseSwagger();
     app.UseSwaggerUI();
 }

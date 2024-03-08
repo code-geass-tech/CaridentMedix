@@ -39,7 +39,10 @@ public class AccountController(IConfiguration configuration, UserManager<Applica
     [HttpPost]
     public async Task<IActionResult> LoginAsync([FromBody] LoginModel model)
     {
-        var user = await userManager.FindByEmailAsync(model.Username);
+        if (string.IsNullOrEmpty(model.Email) && string.IsNullOrEmpty(model.Username))
+            return BadRequest("Email or username is required.");
+
+        var user = await userManager.FindByEmailAsync(model.Email);
         if (user is null || !await userManager.CheckPasswordAsync(user, model.Password))
             return Unauthorized();
 
@@ -99,6 +102,8 @@ public class AccountController(IConfiguration configuration, UserManager<Applica
 
 public class RegisterModel
 {
+    public string Email { get; set; }
+
     public string Password { get; set; }
 
     public string Username { get; set; }
@@ -108,5 +113,7 @@ public class LoginModel
 {
     public string Password { get; set; }
 
-    public string Username { get; set; }
+    public string? Email { get; set; }
+
+    public string? Username { get; set; }
 }

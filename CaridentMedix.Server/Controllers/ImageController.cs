@@ -136,6 +136,7 @@ public class ImageController(
 
         var imageResult = new Models.Image
         {
+            User = user,
             Name = fileName,
             OriginalImagePath = $"images/{user.Id}/{fileName}",
             PlottedImagePath = $"images/{user.Id}/plotted_{fileName}",
@@ -153,7 +154,6 @@ public class ImageController(
                 Y = x.BoundingBox.Y
             }).ToList()
         };
-
         await db.Images.AddAsync(imageResult);
         await db.SaveChangesAsync();
 
