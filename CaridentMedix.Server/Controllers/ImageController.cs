@@ -24,6 +24,8 @@ public class ImageController(
     ///     Analyzes an uploaded image using the YOLO model using an alternative library and returns the analysis result.
     /// </summary>
     /// <param name="file">The image file to be analyzed.</param>
+    /// <param name="confidence">The confidence to use when analyzing the image.</param>
+    /// <param name="iou">The intersection over union to use when analyzing the image.</param>
     /// <returns>
     ///     Returns an IActionResult:
     ///     - BadRequest if the YOLO model is not found.
@@ -32,7 +34,8 @@ public class ImageController(
     /// </returns>
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> AnalyzeImageAlternativeAsync(IFormFile file)
+    public async Task<IActionResult> AnalyzeImageAlternativeAsync(
+        IFormFile file, float confidence = 0.3f, float iou = 0.45f)
     {
         if (string.IsNullOrEmpty(configuration["YOLO:Model"]))
             return BadRequest("YOLO model not found.");
@@ -52,6 +55,9 @@ public class ImageController(
         await file.CopyToAsync(stream);
 
         using var predictor = YoloV8Predictor.Create(configuration["YOLO:Model"]!);
+        predictor.Configuration.Confidence = confidence;
+        predictor.Configuration.IoU = iou;
+
         using var image = await Image.LoadAsync(file.OpenReadStream());
 
         var result = await predictor.DetectAsync(image);
@@ -91,6 +97,7 @@ public class ImageController(
     ///     Analyzes an uploaded image using the YOLO model and returns the analysis result.
     /// </summary>
     /// <param name="file">The image file to be analyzed.</param>
+    /// <param name="threshold">The threshold to use when analyzing the image.</param>
     /// <returns>
     ///     Returns an IActionResult:
     ///     - BadRequest if the YOLO model is not found.
@@ -99,7 +106,7 @@ public class ImageController(
     /// </returns>
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> AnalyzeImageAsync(IFormFile file)
+    public async Task<IActionResult> AnalyzeImageAsync(IFormFile file, double threshold = 0.25)
     {
         if (string.IsNullOrEmpty(configuration["YOLO:Model"]))
             return BadRequest("YOLO model not found.");
@@ -122,7 +129,7 @@ public class ImageController(
 
         using var yolo = new Yolo(configuration["YOLO:Model"]!, false);
         using var image = await Image.LoadAsync(file.OpenReadStream());
-        var results = yolo.RunObjectDetection(image);
+        var results = yolo.RunObjectDetection(image, threshold);
 
         image.Draw(results);
         await image.SaveAsync(plottedPath);
