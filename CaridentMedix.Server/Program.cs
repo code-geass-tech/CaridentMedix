@@ -1,5 +1,8 @@
 using System.Reflection;
 using System.Text;
+using AutoMapper;
+using AutoMapper.EquivalencyExpression;
+using CaridentMedix.Server.Controllers;
 using CaridentMedix.Server.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -24,7 +27,14 @@ builder.Services
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
-builder.Services.AddAutoMapper(typeof(Program));
+builder.Services.AddAutoMapper((serviceProvider, automapper) =>
+{
+    automapper.AddCollectionMappers();
+    automapper.UseEntityFrameworkCoreModel<ApplicationDbContext>(serviceProvider);
+
+    automapper.CreateMap<Clinic, ClinicController.ClinicModel>().ReverseMap();
+    automapper.CreateMap<Dentist, ClinicController.DentistModel>().ReverseMap();
+}, typeof(ApplicationDbContext).Assembly);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -110,15 +120,22 @@ if (app.Environment.IsDevelopment())
 
     // Create an admin user if one does not exist
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-    var adminUser = await userManager.FindByNameAsync("admin");
+    var adminUser = await userManager.FindByNameAsync(configuration["Admin:Username"]!);
     if (adminUser is null)
     {
         adminUser = new ApplicationUser
         {
             UserName = configuration["Admin:Username"],
-            Email = configuration["Admin:Email"],
+            Email = configuration["Admin:Email"]
         };
-        await userManager.CreateAsync(adminUser, configuration["Admin:Password"]);
+
+        await userManager.CreateAsync(adminUser, configuration["Admin:Password"]!);
+
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        if (!await roleManager.RoleExistsAsync("Admin"))
+            await roleManager.CreateAsync(new IdentityRole("Admin"));
+
+        var result = await userManager.AddToRoleAsync(adminUser, "Admin");
     }
 
     app.UseSwagger();
