@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace CaridentMedix.Server.Controllers;
+namespace CaridentMedix.Server.Controllers.Clinic;
 
 /// <summary>
 ///     ClinicController is a controller that handles operations related to clinics.
@@ -35,7 +35,7 @@ public class ClinicController(
         if (db.Clinics.Any(c => c.Name == clinic.Name))
             return BadRequest("A clinic with the same name already exists.");
 
-        var newClinic = mapper.Map<Clinic>(clinic);
+        var newClinic = mapper.Map<Models.Clinic>(clinic);
 
         db.Clinics.Add(newClinic);
         await db.SaveChangesAsync();
@@ -115,7 +115,7 @@ public class ClinicController(
     ///     - A result that represents a status code 500 (Internal Server Error) if an exception was thrown.
     /// </returns>
     [HttpGet]
-    public async Task<IActionResult> GetClinicsAsync(
+    public Task<IActionResult> GetClinics(
         string? generalSearch, string? name, string? email, string? phoneNumber,
         string? address, string? description, string? website)
     {
@@ -220,7 +220,7 @@ public class ClinicController(
                     + WeightedLevenshteinDistance(clinic.Website!, website, 1.5))
                 .ToList();
 
-        return Ok(clinicModels);
+        return Task.FromResult<IActionResult>(Ok(clinicModels));
 
         static int WeightedLevenshteinDistance(string source, string? target, double weight)
         {

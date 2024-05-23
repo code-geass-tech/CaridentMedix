@@ -12,6 +12,7 @@
         <PackageReference Include="AutoMapper" Version="13.0.1" />
         <PackageReference Include="AutoMapper.Collection.EntityFrameworkCore" Version="10.0.0" />
         <PackageReference Include="CliWrap" Version="3.6.6" />
+        <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.9.0" />
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.2" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.2" />
         <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.2" />
@@ -23,47 +24,13 @@
         <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="7.4.0" />
         <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.19.6" />
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.2" />
+        <PackageReference Include="Serilog" Version="3.1.1" />
+        <PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
+        <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />        
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
         <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.5.0" />
         <PackageReference Include="YoloDotNet" Version="1.4.0" />
         <PackageReference Include="YoloV8" Version="4.0.0" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <_ContentIncludedByDefault Remove="wwwroot\images\63bfbca0-4b47-47ce-a77c-0ded966c7e71\1709533815_unnamed.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\63bfbca0-4b47-47ce-a77c-0ded966c7e71\plotted_1709533815_unnamed.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\8a81f84e-0b0e-46d8-819f-d71e83cb7f0d\1709534477_1426_jpg.rf.9a20d078d618c1696c98674c7b477ac8.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\8a81f84e-0b0e-46d8-819f-d71e83cb7f0d\1709534639_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\8a81f84e-0b0e-46d8-819f-d71e83cb7f0d\1709535013_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\8a81f84e-0b0e-46d8-819f-d71e83cb7f0d\1709535259_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\8a81f84e-0b0e-46d8-819f-d71e83cb7f0d\1709535552_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\8a81f84e-0b0e-46d8-819f-d71e83cb7f0d\1709535557_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\8a81f84e-0b0e-46d8-819f-d71e83cb7f0d\1709535898_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\8a81f84e-0b0e-46d8-819f-d71e83cb7f0d\plotted_1709534477_1426_jpg.rf.9a20d078d618c1696c98674c7b477ac8.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\8a81f84e-0b0e-46d8-819f-d71e83cb7f0d\plotted_1709534639_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\8a81f84e-0b0e-46d8-819f-d71e83cb7f0d\plotted_1709535013_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\8a81f84e-0b0e-46d8-819f-d71e83cb7f0d\plotted_1709535552_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\8a81f84e-0b0e-46d8-819f-d71e83cb7f0d\plotted_1709535557_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\8a81f84e-0b0e-46d8-819f-d71e83cb7f0d\plotted_1709535898_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\fc375bdc-1f4b-4b43-87ed-8ff76d43e4ed\1709533926_unnamed.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\fc375bdc-1f4b-4b43-87ed-8ff76d43e4ed\plotted_1709533926_unnamed.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\test\1709536532_1709534639_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\test\1709536744_1709534639_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\test\1709537040_1709534639_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\test\1709539678_1709534639_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\test\1709539807_1709534639_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\test\1709540559_1709534477_1426_jpg.rf.9a20d078d618c1696c98674c7b477ac8.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\test\1709540690_1709534477_1426_jpg.rf.9a20d078d618c1696c98674c7b477ac8.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\test\1709541633_1709534477_1426_jpg.rf.9a20d078d618c1696c98674c7b477ac8.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\test\1709541663_1709534639_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\test\1709541861_cavity.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\test\plotted_1709537040_1709534639_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\test\plotted_1709540559_1709534477_1426_jpg.rf.9a20d078d618c1696c98674c7b477ac8.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\test\plotted_1709540690_1709534477_1426_jpg.rf.9a20d078d618c1696c98674c7b477ac8.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\test\plotted_1709541633_1709534477_1426_jpg.rf.9a20d078d618c1696c98674c7b477ac8.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\test\plotted_1709541663_1709534639_download.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\test\plotted_1709541861_cavity.jpg" />
-      <_ContentIncludedByDefault Remove="wwwroot\images\test\yolov8n.pt" />
     </ItemGroup>
 
 </Project>

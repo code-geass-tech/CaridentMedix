@@ -8,9 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using SixLabors.ImageSharp;
 using YoloDotNet;
 using YoloDotNet.Extensions;
-using Image = SixLabors.ImageSharp.Image;
 
-namespace CaridentMedix.Server.Controllers;
+namespace CaridentMedix.Server.Controllers.Image;
 
 /// <inheritdoc />
 [ApiController]
@@ -58,7 +57,7 @@ public class ImageController(
         predictor.Configuration.Confidence = confidence;
         predictor.Configuration.IoU = iou;
 
-        using var image = await Image.LoadAsync(file.OpenReadStream());
+        using var image = await SixLabors.ImageSharp.Image.LoadAsync(file.OpenReadStream());
 
         var result = await predictor.DetectAsync(image);
         var plot = await result.PlotImageAsync(image);
@@ -128,7 +127,7 @@ public class ImageController(
         await file.CopyToAsync(stream);
 
         using var yolo = new Yolo(configuration["YOLO:Model"]!, false);
-        using var image = await Image.LoadAsync(file.OpenReadStream());
+        using var image = await SixLabors.ImageSharp.Image.LoadAsync(file.OpenReadStream());
         var results = yolo.RunObjectDetection(image, threshold);
 
         image.Draw(results);
