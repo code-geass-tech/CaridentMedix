@@ -33,7 +33,7 @@ public static class ErrorResponseExtensions
     /// </summary>
     /// <param name="identityResult">The identity result</param>
     /// <param name="message">The message to include in the response</param>
-    /// <returns>An <see cref="ErrorResponse" /></returns>z
+    /// <returns>An <see cref="ErrorResponse" /></returns>
     public static ErrorResponse ToErrorResponse(this IdentityResult identityResult, string? message = null) => new()
     {
         StatusCode = HttpStatusCode.BadRequest,

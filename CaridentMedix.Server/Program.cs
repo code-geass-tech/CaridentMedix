@@ -2,8 +2,8 @@ using System.Reflection;
 using System.Text;
 using AutoMapper;
 using AutoMapper.EquivalencyExpression;
-using CaridentMedix.Server.Controllers;
 using CaridentMedix.Server.Controllers.Clinic;
+using CaridentMedix.Server.Controllers.Image;
 using CaridentMedix.Server.Models;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -47,8 +47,11 @@ try
         automapper.AddCollectionMappers();
         automapper.UseEntityFrameworkCoreModel<ApplicationDbContext>(serviceProvider);
 
-        automapper.CreateMap<Clinic, ClinicController.ClinicModel>().ReverseMap();
-        automapper.CreateMap<Dentist, ClinicController.DentistModel>().ReverseMap();
+        automapper.CreateMap<Clinic, ClinicModel>().ReverseMap();
+        automapper.CreateMap<Dentist, DentistModel>().ReverseMap();
+        automapper.CreateMap<DataReport, DataReportRequest>().ReverseMap();
+        automapper.CreateMap<DataReport, DataReportResponse>().ReverseMap();
+        automapper.CreateMap<Image, ImageResponse>().ReverseMap();
     }, typeof(ApplicationDbContext).Assembly);
 
     builder.Services.AddControllers();
@@ -130,20 +133,20 @@ try
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        if (true || args.Contains("--reset-db"))
+        if (args.Contains("--reset-db"))
             db.Database.EnsureDeleted();
 
         db.Database.EnsureCreated();
 
         // Create an admin user if one does not exist
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var adminUser = await userManager.FindByNameAsync(configuration["Admin:Username"]!);
+        var adminUser = await userManager.FindByEmailAsync(configuration["Admin:Email"]!);
         if (adminUser is null)
         {
             adminUser = new ApplicationUser
             {
-                UserName = configuration["Admin:Username"],
-                Email = configuration["Admin:Email"]
+                Email = configuration["Admin:Email"],
+                UserName = configuration["Admin:Email"]
             };
 
             await userManager.CreateAsync(adminUser, configuration["Admin:Password"]!);
@@ -153,6 +156,10 @@ try
                 await roleManager.CreateAsync(new IdentityRole("Admin"));
 
             var result = await userManager.AddToRoleAsync(adminUser, "Admin");
+            if (result.Succeeded)
+                Log.Information("Admin user created successfully");
+            else
+                Log.Error("Failed to create admin user: {@Errors}", result.Errors);
         }
 
         app.UseSwagger();

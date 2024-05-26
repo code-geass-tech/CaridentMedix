@@ -14,7 +14,7 @@ public class ErrorResponse : BaseResponse
     ///     The HTTP status code of the response
     /// </summary>
     [JsonIgnore]
-    public HttpStatusCode StatusCode { get; set; }
+    public required HttpStatusCode StatusCode { get; set; }
 
     /// <summary>
     ///     Specific details about what caused the error

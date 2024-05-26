@@ -12,7 +12,7 @@ public class DataReport
 
     public virtual List<Image> Images { get; set; } = [];
 
-    public string Description { get; set; } = null!;
+    public string? Description { get; set; } = null!;
 
-    public string Title { get; set; } = default!;
+    public string? Title { get; set; } = default!;
 }

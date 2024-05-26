@@ -4,9 +4,11 @@ namespace CaridentMedix.Server.Models;
 
 public class ApplicationUser : IdentityUser
 {
-    public virtual Dentist? Dentist { get; set; }
+    public bool IsClinicAdmin { get; set; }
 
-    public virtual ICollection<Clinic> Clinics { get; set; } = [];
+    public bool IsDeleted { get; set; }
+
+    public virtual Clinic? Clinic { get; set; }
 
     public virtual ICollection<DataReport> DataReports { get; set; } = [];
 

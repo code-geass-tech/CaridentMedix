@@ -8,7 +8,7 @@ public class Clinic
 
     public int Id { get; set; }
 
-    public virtual List<ApplicationUser> Users { get; set; } = [];
+    public virtual List<ApplicationUser> Admins { get; set; } = [];
 
     public virtual List<DataReport> DataReports { get; set; } = [];
 

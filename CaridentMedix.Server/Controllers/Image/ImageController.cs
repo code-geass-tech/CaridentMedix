@@ -1,3 +1,5 @@
+using System.Net;
+using AutoMapper;
 using CaridentMedix.Server.Models;
 using Compunet.YoloV8;
 using Compunet.YoloV8.Plotting;
@@ -6,8 +8,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SixLabors.ImageSharp;
+using Swashbuckle.AspNetCore.Annotations;
 using YoloDotNet;
 using YoloDotNet.Extensions;
+using static Microsoft.AspNetCore.Http.StatusCodes;
 
 namespace CaridentMedix.Server.Controllers.Image;
 
@@ -16,6 +20,7 @@ namespace CaridentMedix.Server.Controllers.Image;
 [Route("[controller]/[action]")]
 public class ImageController(
     IConfiguration configuration,
+    IMapper mapper,
     UserManager<ApplicationUser> userManager,
     ApplicationDbContext db) : ControllerBase
 {
@@ -105,6 +110,7 @@ public class ImageController(
     /// </returns>
     [Authorize]
     [HttpPost]
+    [SwaggerResponse(Status200OK, "The image analysis result.", typeof(Models.Image))]
     public async Task<IActionResult> AnalyzeImageAsync(IFormFile file, double threshold = 0.25)
     {
         if (string.IsNullOrEmpty(configuration["YOLO:Model"]))
@@ -160,6 +166,62 @@ public class ImageController(
     }
 
     /// <summary>
+    ///     Creates a new report based on the provided image ids and user input.
+    /// </summary>
+    /// <param name="report">The report data to create.</param>
+    /// <returns>
+    ///     Returns an IActionResult:
+    ///     - BadRequest if one or more image ids are invalid.
+    ///     - Unauthorized if the user is not found.
+    ///     - Ok with the created report if the report is successfully created.
+    /// </returns>
+    [Authorize]
+    [HttpPost]
+    [SwaggerResponse(Status200OK, "The created report.", typeof(DataReportResponse))]
+    [SwaggerResponse(Status400BadRequest, "One or more image ids are invalid.", typeof(ErrorResponse))]
+    public async Task<IActionResult> CreateReportAsync(DataReportRequest report)
+    {
+        if (!report.ImageIds.All(x => db.Images.Any(image => image.Id.ToString() == x)))
+        {
+            return BadRequest(new ErrorResponse
+            {
+                Message = "One or more image ids are invalid.",
+                StatusCode = HttpStatusCode.BadRequest,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "One or more image ids are invalid.",
+                        PropertyName = nameof(report.ImageIds)
+                    }
+                ]
+            });
+        }
+
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+            return Unauthorized();
+
+        var dataReport = new DataReport
+        {
+            User = user,
+            Title = report.Title,
+            Description = report.Description,
+            CreatedAt = DateTimeOffset.Now,
+            Images = await db.Images
+               .Where(image => report.ImageIds.Contains(image.Id.ToString()))
+               .ToListAsync()
+        };
+
+        db.DataReports.Add(dataReport);
+        await db.SaveChangesAsync();
+
+        var response = mapper.Map<DataReportResponse>(dataReport);
+
+        return Ok(response);
+    }
+
+    /// <summary>
     ///     Deletes a specific report based on the provided id.
     /// </summary>
     /// <param name="id">The id of the report to delete.</param>
@@ -178,9 +240,9 @@ public class ImageController(
             return Unauthorized();
 
         var report = await db.DataReports
-            .Include(report => report.Images)
-            .Include(report => report.User)
-            .FirstOrDefaultAsync(report => report.Id == id);
+           .Include(report => report.Images)
+           .Include(report => report.User)
+           .FirstOrDefaultAsync(report => report.Id == id);
 
         if (report is null)
             return NotFound();
@@ -192,6 +254,21 @@ public class ImageController(
         await db.SaveChangesAsync();
 
         return Ok();
+    }
+
+    [Authorize]
+    [HttpGet]
+    public async Task<IActionResult> GetAnalyzedImages()
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+            return Unauthorized();
+
+        var images = await db.Images
+           .Where(image => image.User == user)
+           .ToListAsync();
+
+        return Ok(images);
     }
 
     /// <summary>
@@ -213,9 +290,9 @@ public class ImageController(
             return Unauthorized();
 
         var report = await db.DataReports
-            .Include(report => report.Images)
-            .Include(report => report.User)
-            .FirstOrDefaultAsync(report => report.Id == id);
+           .Include(report => report.Images)
+           .Include(report => report.User)
+           .FirstOrDefaultAsync(report => report.Id == id);
 
         if (report is null)
             return NotFound();
@@ -247,8 +324,8 @@ public class ImageController(
             return Unauthorized();
 
         var reports = await db.DataReports
-            .Where(report => report.User == user)
-            .ToListAsync();
+           .Where(report => report.User == user)
+           .ToListAsync();
 
         return Ok(reports);
     }

@@ -1,6 +1,6 @@
-namespace CaridentMedix.Server.Controllers.Account;
+namespace CaridentMedix.Server.Controllers.Clinic;
 
-public class LoginRequest
+public class RegisterRequest
 {
     public required string Email { get; init; }
 
