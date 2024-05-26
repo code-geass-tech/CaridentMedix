@@ -1,4 +1,5 @@
-﻿using CaridentMedix.Server.Models;
+﻿using AutoMapper;
+using CaridentMedix.Server.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -12,6 +13,7 @@ namespace CaridentMedix.Server.Controllers.Admin;
 [Authorize(Roles = "Admin")]
 [Route("[controller]/[action]")]
 public class AdminController(
+    IMapper mapper,
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole> roleManager,
     ApplicationDbContext db) : ControllerBase
@@ -39,11 +41,13 @@ public class AdminController(
     ///     If the operation is successful, it returns an OkResult with the list of users.
     /// </returns>
     [HttpGet]
-    [SwaggerResponse(Status200OK, "A list of users", typeof(IEnumerable<ApplicationUser>))]
+    [SwaggerResponse(Status200OK, "A list of users", typeof(IEnumerable<UserResponse>))]
     public IActionResult GetAllUsersAsync()
     {
         var users = userManager.Users.ToList();
-        return Ok(users);
+        var usersResponse = mapper.Map<IEnumerable<UserResponse>>(users);
+
+        return Ok(usersResponse);
     }
 
     /// <summary>

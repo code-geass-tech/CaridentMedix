@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text;
 using AutoMapper;
 using AutoMapper.EquivalencyExpression;
+using CaridentMedix.Server.Controllers.Admin;
 using CaridentMedix.Server.Controllers.Clinic;
 using CaridentMedix.Server.Controllers.Image;
 using CaridentMedix.Server.Models;
@@ -47,6 +48,7 @@ try
         automapper.AddCollectionMappers();
         automapper.UseEntityFrameworkCoreModel<ApplicationDbContext>(serviceProvider);
 
+        automapper.CreateMap<ApplicationUser, UserResponse>().ReverseMap();
         automapper.CreateMap<Clinic, ClinicModel>().ReverseMap();
         automapper.CreateMap<Dentist, DentistModel>().ReverseMap();
         automapper.CreateMap<DataReport, DataReportRequest>().ReverseMap();
