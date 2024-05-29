@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Security.Claims;
 using System.Text;
 using AutoMapper;
@@ -19,6 +19,31 @@ namespace CaridentMedix.Server.Controllers.Account;
 [Route("[controller]/[action]")]
 public class AccountController(IConfiguration configuration, IMapper mapper, UserManager<ApplicationUser> userManager) : ControllerBase
 {
+    /// <summary>
+    ///     This method is responsible for changing a user's name.
+    /// </summary>
+    /// <param name="name">The new name to be set for the user.</param>
+    /// <returns>
+    ///     An IActionResult that represents the result of the ChangeName action.
+    ///     If the change is successful, it returns an OkResult with a success message.
+    ///     If the change fails, it returns a BadRequestObjectResult with the errors.
+    /// </returns>
+    [HttpPut]
+    [Authorize]
+    [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
+    [SwaggerResponse(Status400BadRequest, "A bad request response", typeof(ErrorResponse))]
+    public async Task<IActionResult> ChangeNameAsync(string name)
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user is null) return NotFound();
+
+        user.Name = name;
+        var result = await userManager.UpdateAsync(user);
+        return result.Succeeded
+            ? Ok(new BaseResponse { Message = "Name changed successfully!" })
+            : BadRequest(result.ToErrorResponse());
+    }
+
     /// <summary>
     ///     This method is responsible for deleting a user's avatar.
     /// </summary>
@@ -361,18 +386,4 @@ public class AccountController(IConfiguration configuration, IMapper mapper, Use
             return BadRequest(e.ToErrorResponse());
         }
     }
-
-    public class UserEditModel
-    {
-        public string? Email { get; set; }
-
-        public string? Name { get; set; }
-    }
-}
-
-public class UserEditPasswordRequest
-{
-    public required string NewPassword { get; set; }
-
-    public required string OldPassword { get; set; }
 }
