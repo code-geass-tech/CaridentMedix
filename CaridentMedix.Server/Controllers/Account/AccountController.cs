@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Security.Claims;
 using System.Text;
 using AutoMapper;
@@ -209,7 +209,7 @@ public class AccountController(IConfiguration configuration, IMapper mapper, Use
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(authClaims),
-            Expires = DateTime.Now.AddHours(2),
+            Expires = DateTime.Now.AddDays(7),
             Audience = configuration["Jwt:Audience"],
             Issuer = configuration["Jwt:Issuer"],
             SigningCredentials = new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha512)
