@@ -1,4 +1,6 @@
 ﻿using AutoMapper;
+using CaridentMedix.Server.Controllers.Clinic;
+using CaridentMedix.Server.Controllers.Image;
 using CaridentMedix.Server.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -18,6 +20,57 @@ public class AdminController(
     RoleManager<IdentityRole> roleManager,
     ApplicationDbContext db) : ControllerBase
 {
+    /// <summary>
+    ///     This method is responsible for getting a list of all clinics.
+    /// </summary>
+    /// <returns>
+    ///     An IActionResult that represents the result of the GetAllClinics action.
+    ///     If the operation is successful, it returns an OkResult with the list of clinics.
+    /// </returns>
+    [HttpGet]
+    [SwaggerResponse(Status200OK, "A list of clinics", typeof(IEnumerable<ClinicModel>))]
+    public IActionResult GetAllClinicsAsync()
+    {
+        var clinics = db.Clinics.ToList();
+        var clinicsResponse = mapper.Map<IEnumerable<ClinicModel>>(clinics);
+
+        return Ok(clinicsResponse);
+    }
+
+    /// <summary>
+    ///     This method is responsible for getting a list of all data reports.
+    /// </summary>
+    /// <returns>
+    ///     An IActionResult that represents the result of the GetAllDataReports action.
+    ///     If the operation is successful, it returns an OkResult with the list of data reports.
+    /// </returns>
+    [HttpGet]
+    [SwaggerResponse(Status200OK, "A list of data reports", typeof(IEnumerable<DataReportResponse>))]
+    public IActionResult GetAllDataReportsAsync()
+    {
+        var reports = db.DataReports.ToList();
+        var reportsResponse = mapper.Map<IEnumerable<DataReportResponse>>(reports);
+
+        return Ok(reportsResponse);
+    }
+
+    /// <summary>
+    ///     This method is responsible for getting a list of all images.
+    /// </summary>
+    /// <returns>
+    ///     An IActionResult that represents the result of the GetAllImages action.
+    ///     If the operation is successful, it returns an OkResult with the list of images.
+    /// </returns>
+    [HttpGet]
+    [SwaggerResponse(Status200OK, "A list of images", typeof(IEnumerable<ImageResponse>))]
+    public IActionResult GetAllImagesAsync()
+    {
+        var images = db.Images.ToList();
+        var imagesResponse = mapper.Map<IEnumerable<ImageResponse>>(images);
+
+        return Ok(imagesResponse);
+    }
+
     /// <summary>
     ///     This method is responsible for getting a list of all roles.
     /// </summary>
@@ -41,11 +94,11 @@ public class AdminController(
     ///     If the operation is successful, it returns an OkResult with the list of users.
     /// </returns>
     [HttpGet]
-    [SwaggerResponse(Status200OK, "A list of users", typeof(IEnumerable<UserResponse>))]
+    [SwaggerResponse(Status200OK, "A list of users", typeof(IEnumerable<UserModel>))]
     public IActionResult GetAllUsersAsync()
     {
         var users = userManager.Users.ToList();
-        var usersResponse = mapper.Map<IEnumerable<UserResponse>>(users);
+        var usersResponse = mapper.Map<IEnumerable<UserModel>>(users);
 
         return Ok(usersResponse);
     }
@@ -98,6 +151,39 @@ public class AdminController(
         if (result.Succeeded) return Ok();
 
         return BadRequest(result.Errors);
+    }
+
+    /// <summary>
+    ///     Adds a new clinic asynchronously.
+    /// </summary>
+    /// <param name="clinic">The clinic model to be added.</param>
+    /// <returns>
+    ///     A task that represents the asynchronous operation. The task result contains an IActionResult that can be one of the
+    ///     following:
+    ///     - A result that represents status code 200 (OK) with the added clinic.
+    ///     - A result that represents status code 500 (Internal Server Error) if an exception was thrown.
+    /// </returns>
+    [Authorize(Roles = "Admin")]
+    [HttpPost]
+    [SwaggerResponse(Status200OK, "The clinic was created successfully", typeof(CreateClinicResponse))]
+    [SwaggerResponse(Status400BadRequest, "A clinic with the same name already exists", typeof(ErrorResponse))]
+    public async Task<IActionResult> CreateClinicAsync(ClinicModel clinic)
+    {
+        if (db.Clinics.Any(c => c.Name == clinic.Name))
+            return BadRequest("A clinic with the same name already exists.");
+
+        var newClinic = mapper.Map<Models.Clinic>(clinic);
+
+        db.Clinics.Add(newClinic);
+        await db.SaveChangesAsync();
+
+        var response = new CreateClinicResponse
+        {
+            Message = "Clinic created successfully.",
+            Clinic = clinic
+        };
+
+        return Ok(response);
     }
 
     /// <summary>
@@ -245,6 +331,54 @@ public class AdminController(
     }
 
     /// <summary>
+    ///     Retrieves the reports associated with a specific user based on the provided user id.
+    /// </summary>
+    /// <param name="userId">The id of the user whose reports to retrieve.</param>
+    /// <returns>
+    ///     Returns an IActionResult:
+    ///     - Ok with the list of reports if the reports are successfully retrieved.
+    ///     - NotFound if the user is not found.
+    /// </returns>
+    [HttpGet]
+    [Authorize(Roles = "Admin")]
+    [SwaggerResponse(Status200OK, "A list of reports associated with the user", typeof(IEnumerable<DataReportResponse>))]
+    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(BaseResponse))]
+    public async Task<IActionResult> GetUserReportsAsync(string userId)
+    {
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null) return NotFound();
+
+        var reports = db.DataReports.Where(r => r.User.Id == userId).ToList();
+        var reportsResponse = mapper.Map<IEnumerable<DataReportResponse>>(reports);
+
+        return Ok(reportsResponse);
+    }
+
+    /// <summary>
+    ///     Retrieves the reports associated with a specific user based on the provided email.
+    /// </summary>
+    /// <param name="email">The email of the user whose reports to retrieve.</param>
+    /// <returns>
+    ///     Returns an IActionResult:
+    ///     - Ok with the list of reports if the reports are successfully retrieved.
+    ///     - NotFound if the user is not found.
+    /// </returns>
+    [HttpGet]
+    [Authorize(Roles = "Admin")]
+    [SwaggerResponse(Status200OK, "A list of reports associated with the user", typeof(IEnumerable<DataReportResponse>))]
+    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(BaseResponse))]
+    public async Task<IActionResult> GetUserReportsByEmailAsync(string email)
+    {
+        var user = await userManager.FindByEmailAsync(email);
+        if (user is null) return NotFound();
+
+        var reports = db.DataReports.Where(r => r.User.Email == email).ToList();
+        var reportsResponse = mapper.Map<IEnumerable<DataReportResponse>>(reports);
+
+        return Ok(reportsResponse);
+    }
+
+    /// <summary>
     ///     This method is responsible for removing a user from the Admin role.
     /// </summary>
     /// <param name="userId">The Id of the user.</param>
@@ -323,27 +457,5 @@ public class AdminController(
         if (result.Succeeded) return Ok();
 
         return BadRequest(result.Errors);
-    }
-
-    public class UserEditModel
-    {
-        public bool? IsClinicAdmin { get; set; }
-
-        public bool? IsDeleted { get; set; }
-
-        public Dentist? Dentist { get; set; }
-
-        public string? Email { get; set; }
-    }
-
-    public class UserModel
-    {
-        public bool IsClinicAdmin { get; set; }
-
-        public bool IsDeleted { get; set; }
-
-        public Dentist Dentist { get; set; }
-
-        public string Email { get; set; }
     }
 }

@@ -2,6 +2,7 @@
 using System.Security.Claims;
 using System.Text;
 using AutoMapper;
+using CaridentMedix.Server.Controllers.Admin;
 using CaridentMedix.Server.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -21,7 +22,6 @@ public class AccountController(IConfiguration configuration, IMapper mapper, Use
     /// <summary>
     ///     This method is responsible for deleting a user's avatar.
     /// </summary>
-    /// <param name="userId">The Id of the user.</param>
     /// <returns>
     ///     An IActionResult that represents the result of the DeleteAvatar action.
     ///     If the deletion is successful, it returns an OkResult with a success message.
@@ -35,7 +35,7 @@ public class AccountController(IConfiguration configuration, IMapper mapper, Use
     public async Task<IActionResult> DeleteAvatarAsync()
     {
         var user = await userManager.GetUserAsync(User);
-        if (user == null) return NotFound();
+        if (user is null) return NotFound();
 
         if (string.IsNullOrWhiteSpace(user.ImagePath))
         {
@@ -64,6 +64,30 @@ public class AccountController(IConfiguration configuration, IMapper mapper, Use
     }
 
     /// <summary>
+    ///     This method is responsible for editing a user's password.
+    /// </summary>
+    /// <param name="request">A model containing the user's old and new passwords.</param>
+    /// <returns>
+    ///     An IActionResult that represents the result of the EditPassword action.
+    ///     If the edit is successful, it returns an OkResult with a success message.
+    ///     If the edit fails, it returns a BadRequestObjectResult with the errors.
+    /// </returns>
+    [HttpPut]
+    [Authorize]
+    [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
+    [SwaggerResponse(Status400BadRequest, "A bad request response", typeof(ErrorResponse))]
+    public async Task<IActionResult> EditPasswordAsync(UserEditPasswordRequest request)
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user is null) return NotFound();
+
+        var result = await userManager.ChangePasswordAsync(user, request.OldPassword, request.NewPassword);
+        return result.Succeeded
+            ? Ok(new BaseResponse { Message = "Password changed successfully!" })
+            : BadRequest(result.ToErrorResponse());
+    }
+
+    /// <summary>
     ///     This method is responsible for getting a user's avatar.
     /// </summary>
     /// <returns>
@@ -78,7 +102,7 @@ public class AccountController(IConfiguration configuration, IMapper mapper, Use
     public async Task<IActionResult> GetAvatarAsync()
     {
         var user = await userManager.GetUserAsync(User);
-        if (user == null) return NotFound();
+        if (user is null) return NotFound();
 
         if (string.IsNullOrWhiteSpace(user.ImagePath))
         {
@@ -102,6 +126,27 @@ public class AccountController(IConfiguration configuration, IMapper mapper, Use
             Message = "Avatar retrieved successfully",
             Avatar = user.ImagePath
         });
+    }
+
+    /// <summary>
+    ///     This method is responsible for getting the currently authenticated user.
+    /// </summary>
+    /// <returns>
+    ///     An IActionResult that represents the result of the GetSelf action.
+    ///     If the retrieval is successful, it returns an OkResult with the user's information.
+    ///     If the retrieval fails, it returns a NotFoundObjectResult with an error message.
+    /// </returns>
+    [HttpGet]
+    [Authorize]
+    [SwaggerResponse(Status200OK, "The authenticated user's information", typeof(UserModel))]
+    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(ErrorResponse))]
+    public async Task<IActionResult> GetSelfAsync()
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user is null) return NotFound();
+
+        var response = mapper.Map<UserModel>(user);
+        return Ok(response);
     }
 
     /// <summary>
@@ -173,7 +218,8 @@ public class AccountController(IConfiguration configuration, IMapper mapper, Use
         var user = new ApplicationUser
         {
             Email = request.Email,
-            UserName = request.Email
+            UserName = request.Email,
+            Name = request.Name
         };
 
         var result = await userManager.CreateAsync(user, request.Password);
@@ -188,7 +234,6 @@ public class AccountController(IConfiguration configuration, IMapper mapper, Use
     /// <summary>
     ///     This method is responsible for uploading an avatar for a user.
     /// </summary>
-    /// <param name="userId">The Id of the user.</param>
     /// <param name="avatar">The avatar file to be uploaded.</param>
     /// <returns>
     ///     An IActionResult that represents the result of the UploadAvatar action.
@@ -203,7 +248,7 @@ public class AccountController(IConfiguration configuration, IMapper mapper, Use
     public async Task<IActionResult> UploadAvatarAsync(IFormFile avatar)
     {
         var user = await userManager.GetUserAsync(User);
-        if (user == null) return NotFound();
+        if (user is null) return NotFound();
 
         var fileName = Path.GetRandomFileName() + Path.GetExtension(avatar.FileName);
         var filePath = Path.Combine("wwwroot", "avatars", fileName);
@@ -316,4 +361,18 @@ public class AccountController(IConfiguration configuration, IMapper mapper, Use
             return BadRequest(e.ToErrorResponse());
         }
     }
+
+    public class UserEditModel
+    {
+        public string? Email { get; set; }
+
+        public string? Name { get; set; }
+    }
+}
+
+public class UserEditPasswordRequest
+{
+    public required string NewPassword { get; set; }
+
+    public required string OldPassword { get; set; }
 }

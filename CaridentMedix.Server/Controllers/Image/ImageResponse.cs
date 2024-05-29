@@ -4,6 +4,8 @@ namespace CaridentMedix.Server.Controllers.Image;
 
 public class ImageResponse
 {
+    public static string ImageBaseUrl = string.Empty;
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public int Height { get; set; }

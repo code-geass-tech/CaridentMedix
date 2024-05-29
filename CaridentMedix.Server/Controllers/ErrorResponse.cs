@@ -13,7 +13,6 @@ public class ErrorResponse : BaseResponse
     /// <summary>
     ///     The HTTP status code of the response
     /// </summary>
-    [JsonIgnore]
     public required HttpStatusCode StatusCode { get; set; }
 
     /// <summary>
