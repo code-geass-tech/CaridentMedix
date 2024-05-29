@@ -443,7 +443,7 @@ public class AdminController(
     [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
     [SwaggerResponse(Status400BadRequest, "The operation failed", typeof(ErrorResponse))]
     [SwaggerResponse(Status404NotFound, "The user was not found", typeof(BaseResponse))]
-    public async Task<IActionResult> UpdateUserAsync(string userId, UserEditModel user)
+    public async Task<IActionResult> UpdateUserAsync(string userId, AdminUserEditRequest user)
     {
         var existingUser = await userManager.FindByIdAsync(userId);
         if (existingUser is null) return NotFound();

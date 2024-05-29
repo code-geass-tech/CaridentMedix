@@ -26,6 +26,8 @@ public class UserModel
 
     public string? Email { get; set; }
 
+    public string? ImagePath { get; set; }
+
     public string? Name { get; set; }
 
     public string? NormalizedEmail { get; set; }

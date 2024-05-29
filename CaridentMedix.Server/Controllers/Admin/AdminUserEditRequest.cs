@@ -2,7 +2,7 @@
 
 namespace CaridentMedix.Server.Controllers.Admin;
 
-public class UserEditModel
+public class AdminUserEditRequest
 {
     public bool? IsClinicAdmin { get; set; }
  

@@ -101,7 +101,7 @@ public class AccountController(IConfiguration configuration, IMapper mapper, Use
     [Authorize]
     [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
     [SwaggerResponse(Status400BadRequest, "A bad request response", typeof(ErrorResponse))]
-    public async Task<IActionResult> EditPasswordAsync(UserEditPasswordRequest request)
+    public async Task<IActionResult> EditPasswordAsync(SelfUserEditPasswordRequest request)
     {
         var user = await userManager.GetUserAsync(User);
         if (user is null) return NotFound();
@@ -113,44 +113,29 @@ public class AccountController(IConfiguration configuration, IMapper mapper, Use
     }
 
     /// <summary>
-    ///     This method is responsible for getting a user's avatar.
+    ///     This method is responsible for editing a user's information.
     /// </summary>
+    /// <param name="request">A model containing the user's new information.</param>
     /// <returns>
-    ///     An IActionResult that represents the result of the GetAvatar action.
-    ///     If the retrieval is successful, it returns an OkResult with the user's avatar.
-    ///     If the retrieval fails, it returns a NotFoundObjectResult with an error message.
+    ///     An IActionResult that represents the result of the EditSelf action.
+    ///     If the edit is successful, it returns an OkResult with a success message.
+    ///     If the edit fails, it returns a BadRequestObjectResult with the errors.
     /// </returns>
-    [HttpGet]
+    [HttpPut]
     [Authorize]
-    [SwaggerResponse(Status200OK, "The user's avatar", typeof(AvatarResult))]
-    [SwaggerResponse(Status404NotFound, "The user does not have an avatar", typeof(ErrorResponse))]
-    public async Task<IActionResult> GetAvatarAsync()
+    [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
+    [SwaggerResponse(Status400BadRequest, "A bad request response", typeof(ErrorResponse))]
+    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(ErrorResponse))]
+    public async Task<IActionResult> EditSelfAsync(SelfUserEditRequest request)
     {
         var user = await userManager.GetUserAsync(User);
         if (user is null) return NotFound();
 
-        if (string.IsNullOrWhiteSpace(user.ImagePath))
-        {
-            return NotFound(new ErrorResponse
-            {
-                StatusCode = HttpStatusCode.NotFound,
-                Message = "The user does not have an avatar",
-                Details =
-                [
-                    new ErrorDetail
-                    {
-                        Message = "The user does not have an avatar",
-                        PropertyName = nameof(user)
-                    }
-                ]
-            });
-        }
-
-        return Ok(new AvatarResult
-        {
-            Message = "Avatar retrieved successfully",
-            Avatar = user.ImagePath
-        });
+        mapper.Map(request, user);
+        var result = await userManager.UpdateAsync(user);
+        return result.Succeeded
+            ? Ok(new BaseResponse { Message = "User updated successfully!" })
+            : BadRequest(result.ToErrorResponse());
     }
 
     /// <summary>

@@ -1,6 +1,6 @@
 ﻿namespace CaridentMedix.Server.Controllers.Account;
 
-public class UserEditPasswordRequest
+public class SelfUserEditPasswordRequest
 {
     public required string NewPassword { get; set; }
 
