@@ -11,6 +11,7 @@ using SixLabors.ImageSharp;
 using Swashbuckle.AspNetCore.Annotations;
 using YoloDotNet;
 using YoloDotNet.Extensions;
+using YoloDotNet.Models;
 using static Microsoft.AspNetCore.Http.StatusCodes;
 
 namespace CaridentMedix.Server.Controllers.Image;
@@ -104,6 +105,9 @@ public class ImageController(
     /// </summary>
     /// <param name="file">The image file to be analyzed.</param>
     /// <param name="threshold">The threshold to use when analyzing the image.</param>
+    /// <param name="iou">The intersection over union to use when analyzing the image.</param>
+    /// <param name="drawConfidence">Whether to draw the confidence on the image.</param>
+    /// <param name="drawNames">Whether to draw the names on the image.</param>
     /// <returns>
     ///     Returns an IActionResult:
     ///     - BadRequest if the YOLO model is not found.
@@ -114,7 +118,9 @@ public class ImageController(
     [Authorize]
     [HttpPost]
     [SwaggerResponse(Status200OK, "The image analysis result.", typeof(Models.Image))]
-    public async Task<IActionResult> AnalyzeImageAsync(IFormFile file, double threshold = 0.25)
+    public async Task<IActionResult> AnalyzeImageAsync(IFormFile file,
+        double threshold = 0.25, float iou = 0.45f,
+        bool drawConfidence = true, bool drawNames = true)
     {
         if (string.IsNullOrEmpty(configuration["YOLO:Model"]))
             return BadRequest("YOLO model not found.");
@@ -137,9 +143,25 @@ public class ImageController(
 
         using var yolo = new Yolo(configuration["YOLO:Model"]!, false);
         using var image = await SixLabors.ImageSharp.Image.LoadAsync(file.OpenReadStream());
-        var results = yolo.RunObjectDetection(image, threshold);
+        var results = yolo.RunObjectDetection(image, threshold, iou);
 
-        image.Draw(results);
+        if (!drawNames)
+        {
+            image.Draw(results.Select(x => new ObjectDetection
+            {
+                BoundingBox = x.BoundingBox,
+                Confidence = x.Confidence,
+                Label = new LabelModel
+                {
+                    Index = x.Label.Index,
+                    Name = string.Empty,
+                    Color = x.Label.Color
+                }
+            }).ToList(), drawConfidence);
+        }
+        else
+            image.Draw(results, drawConfidence);
+
         await image.SaveAsync(plottedPath);
 
         var imageResult = new Models.Image

@@ -29,8 +29,8 @@
         <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />        
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
         <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.5.0" />
-        <PackageReference Include="YoloDotNet" Version="1.4.0" />
-        <PackageReference Include="YoloV8" Version="4.0.0" />
+        <PackageReference Include="YoloDotNet" Version="1.7.0" />
+        <PackageReference Include="YoloV8" Version="4.1.5" />
     </ItemGroup>
 
 </Project>
