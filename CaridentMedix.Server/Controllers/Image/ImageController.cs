@@ -145,6 +145,18 @@ public class ImageController(
         using var image = await SixLabors.ImageSharp.Image.LoadAsync(file.OpenReadStream());
         var results = yolo.RunObjectDetection(image, threshold, iou);
 
+        results = results.Select(x => new ObjectDetection
+        {
+            BoundingBox = x.BoundingBox,
+            Confidence = x.Confidence,
+            Label = new LabelModel
+            {
+                Index = x.Label.Index,
+                Name = x.Label.Name,
+                Color = configuration[$"YOLO:Colors:{x.Label.Name}"] ?? x.Label.Color
+            }
+        }).ToList();
+
         if (!drawNames)
         {
             image.Draw(results.Select(x => new ObjectDetection
