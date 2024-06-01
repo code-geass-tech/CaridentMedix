@@ -131,7 +131,8 @@ public class AccountController(IConfiguration configuration, IMapper mapper, Use
         var user = await userManager.GetUserAsync(User);
         if (user is null) return NotFound();
 
-        mapper.Map(request, user);
+        user.Name = request.Name ?? user.Name;
+
         var result = await userManager.UpdateAsync(user);
         return result.Succeeded
             ? Ok(new BaseResponse { Message = "User updated successfully!" })
