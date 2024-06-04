@@ -33,4 +33,20 @@
         <PackageReference Include="YoloV8" Version="4.1.5" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Compile Remove="wwwroot\images\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="wwwroot\images\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Remove="wwwroot\images\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="wwwroot\images\**" />
+    </ItemGroup>
+
 </Project>
