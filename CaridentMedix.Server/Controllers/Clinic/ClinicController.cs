@@ -197,6 +197,36 @@ public class ClinicController(
     }
 
     /// <summary>
+    ///     Asynchronously deletes a shared report.
+    /// </summary>
+    /// <param name="reportId">The unique identifier of the shared report.</param>
+    /// <returns>
+    ///     An IActionResult that represents the result of the DeleteSharedReportAsync action.
+    ///     If the deletion is successful, it returns an OkResult.
+    ///     If the deletion fails, it returns a BadRequestObjectResult with an error message.
+    /// </returns>
+    [HttpDelete]
+    [Authorize]
+    [SwaggerResponse(Status200OK, "The shared report was successfully deleted")]
+    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action")]
+    public async Task<IActionResult> DeleteSharedReportAsync(int reportId)
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user is null) return Unauthorized();
+
+        var clinic = user.Clinic;
+        if (clinic is null) return BadRequest("You must be associated with a clinic to delete a shared report.");
+
+        var report = clinic.DataReports.FirstOrDefault(report => report.Id == reportId);
+        if (report is null) return NotFound("The report was not found.");
+
+        clinic.DataReports.Remove(report);
+        await db.SaveChangesAsync();
+
+        return Ok();
+    }
+
+    /// <summary>
     ///     Asynchronously retrieves a list of all clinics.
     /// </summary>
     /// <param name="latitude">The latitude of the user's location.</param>
@@ -204,7 +234,7 @@ public class ClinicController(
     /// <returns>The list of clinics ordered by distance from the user's location.</returns>
     [HttpGet]
     [SwaggerResponse(Status200OK, "A list of clinics", typeof(List<ClinicModel>))]
-    public async Task<IActionResult> FindNearbyClinics(float latitude, float longitude, float radiusKm = 5000)
+    public async Task<IActionResult> FindNearbyClinics(float latitude, float longitude, float radiusKm = 50)
     {
         var clinics = await db.Clinics.ToListAsync();
         var clinicModels = clinics.Select(mapper.Map<ClinicModel>).ToList();
@@ -244,23 +274,6 @@ public class ClinicController(
 
         var clinicModel = mapper.Map<ClinicModel>(clinic);
         return Ok(clinicModel);
-    }
-
-    [HttpGet]
-    [Authorize]
-    public async Task<IActionResult> GetSharedReports()
-    {
-        var user = await userManager.GetUserAsync(User);
-        if (user is null) return Unauthorized();
-
-        var clinic = user.Clinic;
-        if (clinic is null) return BadRequest("You must be associated with a clinic to view shared reports.");
-
-        var result = clinic.DataReports
-           .Select(mapper.Map<DataReportModel>)
-           .ToList();
-
-        return Ok(result);
     }
 
     /// <summary>
@@ -395,6 +408,35 @@ public class ClinicController(
             var distance = LevenshteinDistance(source, target);
             return (int) (distance * weight);
         }
+    }
+
+    /// <summary>
+    ///     Asynchronously retrieves a list of clinics associated with the user.
+    /// </summary>
+    /// <returns>
+    ///     A task that represents the asynchronous operation. The task result contains an IActionResult that can be one of the
+    ///     following:
+    ///     - A result that represents a status code 200 (OK) with a list of clinics.
+    ///     - A result that represents a status code 500 (Internal Server Error) if an exception was thrown.
+    /// </returns>
+    [HttpGet]
+    [Authorize]
+    [SwaggerResponse(Status200OK, "A list of clinics", typeof(List<ClinicModel>))]
+    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action")]
+    public async Task<IActionResult> GetSharedReportsAsync()
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user is null) return Unauthorized();
+
+        var clinic = user.Clinic;
+        if (clinic is null) return BadRequest("You must be associated with a clinic to view shared reports.");
+
+        var result = clinic.DataReports
+           .Select(mapper.Map<DataReportModel>)
+           .OrderByDescending(report => report.CreatedAt)
+           .ToList();
+
+        return Ok(result);
     }
 
     /// <summary>
@@ -538,7 +580,7 @@ public class ClinicController(
             });
         }
 
-        if (!clinic.Admins.Any(x => x.Id == user.Id) || !await userManager.IsInRoleAsync(currentUser, "Admin"))
+        if (clinic.Admins.All(x => x.Id != user.Id) || !await userManager.IsInRoleAsync(currentUser, "Admin"))
             return Unauthorized();
 
         clinic.Admins.Remove(user);

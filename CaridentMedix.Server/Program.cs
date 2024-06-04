@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text;
 using AutoMapper;
 using AutoMapper.EquivalencyExpression;
+using CaridentMedix.Server.Controllers.Account;
 using CaridentMedix.Server.Controllers.Admin;
 using CaridentMedix.Server.Controllers.Clinic;
 using CaridentMedix.Server.Controllers.Image;
@@ -54,7 +55,8 @@ try
         automapper.CreateMap<DataReport, DataReportRequest>().ReverseMap();
         automapper.CreateMap<DataReport, DataReportModel>().ReverseMap();
         automapper.CreateMap<DataReport, DataReportModel>().ReverseMap();
-        automapper.CreateMap<Image, ImageResponse>().ReverseMap();
+        automapper.CreateMap<Image, ImageModel>().ReverseMap();
+        automapper.CreateMap<Appointment, AppointmentModel>().ReverseMap();
     }, typeof(ApplicationDbContext).Assembly);
 
     builder.Services.AddControllers();

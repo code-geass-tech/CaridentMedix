@@ -197,7 +197,7 @@ public class ImageController(
         await db.Images.AddAsync(imageResult);
         await db.SaveChangesAsync();
 
-        var response = mapper.Map<ImageResponse>(imageResult);
+        var response = mapper.Map<ImageModel>(imageResult);
 
         return Ok(response);
     }
@@ -301,7 +301,7 @@ public class ImageController(
         await db.Images.AddAsync(imageResult);
         await db.SaveChangesAsync();
 
-        var response = mapper.Map<ImageResponse>(imageResult);
+        var response = mapper.Map<ImageModel>(imageResult);
 
         return Ok(response);
     }
@@ -378,7 +378,7 @@ public class ImageController(
 
         await db.SaveChangesAsync();
 
-        var response = mapper.Map<List<ImageResponse>>(imageResults);
+        var response = mapper.Map<List<ImageModel>>(imageResults);
 
         return Ok(response);
     }
@@ -494,7 +494,7 @@ public class ImageController(
            .Where(image => image.User == user)
            .ToListAsync();
 
-        var response = mapper.Map<IEnumerable<ImageResponse>>(images);
+        var response = mapper.Map<IEnumerable<ImageModel>>(images);
 
         return Ok(response);
     }

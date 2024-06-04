@@ -6,7 +6,7 @@ public class DataReportModel
 
     public int Id { get; set; }
 
-    public virtual List<ImageResponse> Images { get; set; } = [];
+    public virtual List<ImageModel> Images { get; set; } = [];
 
     public string Description { get; set; } = null!;
 

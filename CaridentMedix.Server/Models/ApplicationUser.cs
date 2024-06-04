@@ -10,6 +10,8 @@ public class ApplicationUser : IdentityUser
 
     public virtual Clinic? Clinic { get; set; }
 
+    public virtual ICollection<Appointment> Appointments { get; set; } = [];
+
     public virtual ICollection<DataReport> DataReports { get; set; } = [];
 
     public virtual ICollection<Image> Images { get; set; } = [];

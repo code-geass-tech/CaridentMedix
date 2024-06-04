@@ -12,6 +12,8 @@ public class Clinic
 
     public virtual List<DataReport> DataReports { get; set; } = [];
 
+    public virtual List<Appointment> Appointments { get; set; } = [];
+
     public virtual List<Dentist> Dentists { get; set; } = [];
 
     public string Address { get; set; } = null!;

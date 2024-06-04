@@ -2,7 +2,7 @@
 
 namespace CaridentMedix.Server.Controllers.Image;
 
-public class ImageResponse
+public class ImageModel
 {
     public static string ImageBaseUrl = string.Empty;
 

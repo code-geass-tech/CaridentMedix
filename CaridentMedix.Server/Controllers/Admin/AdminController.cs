@@ -62,11 +62,11 @@ public class AdminController(
     ///     If the operation is successful, it returns an OkResult with the list of images.
     /// </returns>
     [HttpGet]
-    [SwaggerResponse(Status200OK, "A list of images", typeof(IEnumerable<ImageResponse>))]
+    [SwaggerResponse(Status200OK, "A list of images", typeof(IEnumerable<ImageModel>))]
     public IActionResult GetAllImagesAsync()
     {
         var images = db.Images.ToList();
-        var imagesResponse = mapper.Map<IEnumerable<ImageResponse>>(images);
+        var imagesResponse = mapper.Map<IEnumerable<ImageModel>>(images);
 
         return Ok(imagesResponse);
     }
