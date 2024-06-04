@@ -45,11 +45,11 @@ public class AdminController(
     ///     If the operation is successful, it returns an OkResult with the list of data reports.
     /// </returns>
     [HttpGet]
-    [SwaggerResponse(Status200OK, "A list of data reports", typeof(IEnumerable<DataReportResponse>))]
+    [SwaggerResponse(Status200OK, "A list of data reports", typeof(IEnumerable<DataReportModel>))]
     public IActionResult GetAllDataReportsAsync()
     {
         var reports = db.DataReports.ToList();
-        var reportsResponse = mapper.Map<IEnumerable<DataReportResponse>>(reports);
+        var reportsResponse = mapper.Map<IEnumerable<DataReportModel>>(reports);
 
         return Ok(reportsResponse);
     }
@@ -94,11 +94,11 @@ public class AdminController(
     ///     If the operation is successful, it returns an OkResult with the list of users.
     /// </returns>
     [HttpGet]
-    [SwaggerResponse(Status200OK, "A list of users", typeof(IEnumerable<UserModel>))]
+    [SwaggerResponse(Status200OK, "A list of users", typeof(IEnumerable<GetSelfResponse>))]
     public IActionResult GetAllUsersAsync()
     {
         var users = userManager.Users.ToList();
-        var usersResponse = mapper.Map<IEnumerable<UserModel>>(users);
+        var usersResponse = mapper.Map<IEnumerable<GetSelfResponse>>(users);
 
         return Ok(usersResponse);
     }
@@ -341,7 +341,7 @@ public class AdminController(
     /// </returns>
     [HttpGet]
     [Authorize(Roles = "Admin")]
-    [SwaggerResponse(Status200OK, "A list of reports associated with the user", typeof(IEnumerable<DataReportResponse>))]
+    [SwaggerResponse(Status200OK, "A list of reports associated with the user", typeof(IEnumerable<DataReportModel>))]
     [SwaggerResponse(Status404NotFound, "The user was not found", typeof(BaseResponse))]
     public async Task<IActionResult> GetUserReportsAsync(string userId)
     {
@@ -349,7 +349,7 @@ public class AdminController(
         if (user is null) return NotFound();
 
         var reports = db.DataReports.Where(r => r.User.Id == userId).ToList();
-        var reportsResponse = mapper.Map<IEnumerable<DataReportResponse>>(reports);
+        var reportsResponse = mapper.Map<IEnumerable<DataReportModel>>(reports);
 
         return Ok(reportsResponse);
     }
@@ -365,7 +365,7 @@ public class AdminController(
     /// </returns>
     [HttpGet]
     [Authorize(Roles = "Admin")]
-    [SwaggerResponse(Status200OK, "A list of reports associated with the user", typeof(IEnumerable<DataReportResponse>))]
+    [SwaggerResponse(Status200OK, "A list of reports associated with the user", typeof(IEnumerable<DataReportModel>))]
     [SwaggerResponse(Status404NotFound, "The user was not found", typeof(BaseResponse))]
     public async Task<IActionResult> GetUserReportsByEmailAsync(string email)
     {
@@ -373,7 +373,7 @@ public class AdminController(
         if (user is null) return NotFound();
 
         var reports = db.DataReports.Where(r => r.User.Email == email).ToList();
-        var reportsResponse = mapper.Map<IEnumerable<DataReportResponse>>(reports);
+        var reportsResponse = mapper.Map<IEnumerable<DataReportModel>>(reports);
 
         return Ok(reportsResponse);
     }

@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using AutoMapper;
+using CaridentMedix.Server.Controllers.Image;
 using CaridentMedix.Server.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -203,7 +204,7 @@ public class ClinicController(
     /// <returns>The list of clinics ordered by distance from the user's location.</returns>
     [HttpGet]
     [SwaggerResponse(Status200OK, "A list of clinics", typeof(List<ClinicModel>))]
-    public async Task<IActionResult> FindNearbyClinics(float latitude, float longitude)
+    public async Task<IActionResult> FindNearbyClinics(float latitude, float longitude, float radiusKm = 5000)
     {
         var clinics = await db.Clinics.ToListAsync();
         var clinicModels = clinics.Select(mapper.Map<ClinicModel>).ToList();
@@ -243,6 +244,23 @@ public class ClinicController(
 
         var clinicModel = mapper.Map<ClinicModel>(clinic);
         return Ok(clinicModel);
+    }
+
+    [HttpGet]
+    [Authorize]
+    public async Task<IActionResult> GetSharedReports()
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user is null) return Unauthorized();
+
+        var clinic = user.Clinic;
+        if (clinic is null) return BadRequest("You must be associated with a clinic to view shared reports.");
+
+        var result = clinic.DataReports
+           .Select(mapper.Map<DataReportModel>)
+           .ToList();
+
+        return Ok(result);
     }
 
     /// <summary>

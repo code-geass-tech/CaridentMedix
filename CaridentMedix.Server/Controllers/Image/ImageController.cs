@@ -26,6 +26,108 @@ public class ImageController(
     ApplicationDbContext db) : ControllerBase
 {
     /// <summary>
+    ///     Adds an image to a specific report based on the provided image id.
+    /// </summary>
+    /// <param name="imageId">The id of the image to add to the report.</param>
+    /// <returns>
+    ///     Returns an IActionResult:
+    ///     - BadRequest if the image is already added to the report.
+    ///     - NotFound if the image is not found or the report is not found.
+    ///     - Unauthorized if the user is not found.
+    ///     - Ok with the updated report if the image is successfully added to the report.
+    /// </returns>
+    [Authorize]
+    [HttpPost]
+    [SwaggerResponse(Status200OK, "The updated report.", typeof(DataReportModel))]
+    [SwaggerResponse(Status400BadRequest, "The image is already added to the report.", typeof(ErrorResponse))]
+    [SwaggerResponse(Status404NotFound, "The image or report is not found.", typeof(ErrorResponse))]
+    public async Task<IActionResult> AddImageToReportAsync(int imageId)
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(User)
+                    }
+                ]
+            });
+        }
+
+        var dataReport = await db.DataReports
+           .Include(report => report.Images)
+           .FirstOrDefaultAsync(report => report.User == user);
+
+        if (dataReport is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "Report not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "Report not found.",
+                        PropertyName = nameof(imageId)
+                    }
+                ]
+            });
+        }
+
+        if (dataReport.Images.Any(image => image.Id == imageId))
+        {
+            return BadRequest(new ErrorResponse
+            {
+                Message = "Image already added to report.",
+                StatusCode = HttpStatusCode.BadRequest,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "Image already added to report.",
+                        PropertyName = nameof(imageId)
+                    }
+                ]
+            });
+        }
+
+        var image = await db.Images
+           .FirstOrDefaultAsync(image => image.Id == imageId);
+
+        if (image is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "Image not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "Image not found.",
+                        PropertyName = nameof(imageId)
+                    }
+                ]
+            });
+        }
+
+        dataReport.Images.Add(image);
+        await db.SaveChangesAsync();
+
+        var result = mapper.Map<DataReportModel>(dataReport);
+
+        return Ok(result);
+    }
+
+    /// <summary>
     ///     Analyzes an uploaded image using the YOLO model using an alternative library and returns the analysis result.
     /// </summary>
     /// <param name="file">The image file to be analyzed.</param>
@@ -53,7 +155,7 @@ public class ImageController(
         var basePath = Path.Combine("wwwroot", userIdPath);
         Directory.CreateDirectory(basePath);
 
-        var fileName = $"{DateTimeOffset.Now.ToUnixTimeSeconds()}_{file.FileName}";
+        var fileName = $"{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}_{file.FileName}";
 
         var path = Path.Combine(basePath, fileName);
         await using var stream = new FileStream(path, FileMode.Create);
@@ -133,7 +235,7 @@ public class ImageController(
         var basePath = Path.Combine("wwwroot", userIdPath);
         Directory.CreateDirectory(basePath);
 
-        var fileName = $"{DateTimeOffset.Now.ToUnixTimeSeconds()}_{file.FileName}";
+        var fileName = $"{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}_{file.FileName}";
 
         var path = Path.Combine(basePath, fileName);
         var plottedPath = Path.Combine(basePath, $"plotted_{fileName}");
@@ -235,7 +337,7 @@ public class ImageController(
 
         foreach (var file in files)
         {
-            var fileName = $"{DateTimeOffset.Now.ToUnixTimeSeconds()}_{file.FileName}";
+            var fileName = $"{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}_{file.FileName}";
 
             var path = Path.Combine(basePath, fileName);
             var plottedPath = Path.Combine(basePath, $"plotted_{fileName}");
@@ -293,7 +395,7 @@ public class ImageController(
     /// </returns>
     [Authorize]
     [HttpPost]
-    [SwaggerResponse(Status200OK, "The created report.", typeof(DataReportResponse))]
+    [SwaggerResponse(Status200OK, "The created report.", typeof(DataReportModel))]
     [SwaggerResponse(Status400BadRequest, "One or more image ids are invalid.", typeof(ErrorResponse))]
     public async Task<IActionResult> CreateReportAsync(DataReportRequest report)
     {
@@ -323,7 +425,7 @@ public class ImageController(
             User = user,
             Title = report.Title,
             Description = report.Description,
-            CreatedAt = DateTimeOffset.Now,
+            CreatedAt = DateTimeOffset.UtcNow,
             Images = await db.Images
                .Where(image => report.ImageIds.Contains(image.Id.ToString()))
                .ToListAsync()
@@ -332,7 +434,7 @@ public class ImageController(
         db.DataReports.Add(dataReport);
         await db.SaveChangesAsync();
 
-        var response = mapper.Map<DataReportResponse>(dataReport);
+        var response = mapper.Map<DataReportModel>(dataReport);
 
         return Ok(response);
     }
@@ -432,10 +534,6 @@ public class ImageController(
     /// <summary>
     ///     Retrieves reports based on the provided filter.
     /// </summary>
-    /// <param name="filter">
-    ///     The filter to apply when retrieving reports. This could be a keyword or phrase that is present in
-    ///     the report data.
-    /// </param>
     /// <returns>
     ///     Returns an IActionResult:
     ///     - Unauthorized if the user is not found.
@@ -443,16 +541,83 @@ public class ImageController(
     /// </returns>
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> GetReportsAsync(string filter)
+    [SwaggerResponse(Status200OK, "The list of reports of the user.", typeof(List<DataReportModel>))]
+    public async Task<IActionResult> GetReportsAsync()
     {
         var user = await userManager.GetUserAsync(User);
         if (user is null)
             return Unauthorized();
 
-        var reports = await db.DataReports
-           .Where(report => report.User == user)
-           .ToListAsync();
+        var reports = user.DataReports;
+        var result = mapper.Map<List<DataReportModel>>(reports);
 
-        return Ok(reports);
+        return Ok(result);
+    }
+
+    /// <summary>
+    ///     Shares a specific report with a specific clinic based on the provided report and clinic ids.
+    /// </summary>
+    /// <param name="sharedDataReportRequest">The shared data report request to process.</param>
+    /// <returns>
+    ///     Returns an IActionResult:
+    ///     - NotFound if the report or clinic is not found.
+    ///     - Unauthorized if the user is not found.
+    ///     - Ok with the updated report if the report is successfully shared with the clinic.
+    /// </returns>
+    [Authorize]
+    [HttpPost]
+    [SwaggerResponse(Status200OK, "The updated report.", typeof(DataReportModel))]
+    [SwaggerResponse(Status404NotFound, "The report or clinic is not found.", typeof(ErrorResponse))]
+    public async Task<IActionResult> ShareDataReportAsync(SharedDataReportRequest sharedDataReportRequest)
+    {
+        var report = await db.DataReports
+           .Include(report => report.Images)
+           .Include(report => report.User)
+           .FirstOrDefaultAsync(report => report.Id == sharedDataReportRequest.DataReportId);
+
+        if (report is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "Report not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "Report not found.",
+                        PropertyName = nameof(sharedDataReportRequest.DataReportId)
+                    }
+                ]
+            });
+        }
+
+        var clinic = await db.Clinics
+           .FirstOrDefaultAsync(clinic => clinic.Id == sharedDataReportRequest.ClinicId);
+
+        if (clinic is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "Clinic not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "Clinic not found.",
+                        PropertyName = nameof(sharedDataReportRequest.ClinicId)
+                    }
+                ]
+            });
+        }
+
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+            return Unauthorized();
+
+        clinic.DataReports.Add(report);
+
+        return Ok(report);
     }
 }

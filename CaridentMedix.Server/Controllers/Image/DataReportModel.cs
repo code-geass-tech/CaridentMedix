@@ -1,6 +1,6 @@
 ﻿namespace CaridentMedix.Server.Controllers.Image;
 
-public class DataReportResponse
+public class DataReportModel
 {
     public DateTimeOffset CreatedAt { get; set; }
 

@@ -1,8 +1,6 @@
-﻿using CaridentMedix.Server.Controllers.Image;
+﻿namespace CaridentMedix.Server.Controllers.Admin;
 
-namespace CaridentMedix.Server.Controllers.Admin;
-
-public class UserModel
+public class GetSelfResponse
 {
     public bool EmailConfirmed { get; set; }
 
@@ -17,10 +15,6 @@ public class UserModel
     public bool TwoFactorEnabled { get; set; }
 
     public DateTimeOffset? LockoutEnd { get; set; }
-
-    public ICollection<DataReportResponse> DataReports { get; set; }
-
-    public ICollection<ImageResponse> Images { get; set; }
 
     public int AccessFailedCount { get; set; }
 

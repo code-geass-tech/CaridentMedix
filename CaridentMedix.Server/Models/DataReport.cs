@@ -1,10 +1,12 @@
-﻿namespace CaridentMedix.Server.Models;
+using System.Text.Json.Serialization;
+
+namespace CaridentMedix.Server.Models;
 
 public class DataReport
 {
     public virtual ApplicationUser User { get; set; } = null!;
 
-    public virtual Clinic SubmittedClinic { get; set; } = default!;
+    public virtual List<Clinic> SharedClinics { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; } = default!;
 

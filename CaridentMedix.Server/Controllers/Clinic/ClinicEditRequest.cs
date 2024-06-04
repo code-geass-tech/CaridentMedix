@@ -1,4 +1,6 @@
-﻿namespace CaridentMedix.Server.Controllers.Clinic;
+﻿using CaridentMedix.Server.Models;
+
+namespace CaridentMedix.Server.Controllers.Clinic;
 
 #pragma warning disable CS1591
 public class ClinicEditRequest
@@ -9,7 +11,7 @@ public class ClinicEditRequest
  
     public float? Longitude { get; init; }
  
-    public List<DentistModel>? Dentists { get; init; } = [];
+    public List<Dentist>? Dentists { get; init; } = [];
  
     public string? Address { get; init; } = null!;
  

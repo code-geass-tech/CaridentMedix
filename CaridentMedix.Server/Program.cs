@@ -48,11 +48,12 @@ try
         automapper.AddCollectionMappers();
         automapper.UseEntityFrameworkCoreModel<ApplicationDbContext>(serviceProvider);
 
-        automapper.CreateMap<ApplicationUser, UserModel>().ReverseMap();
+        automapper.CreateMap<ApplicationUser, GetSelfResponse>().ReverseMap();
         automapper.CreateMap<Clinic, ClinicModel>().ReverseMap();
         automapper.CreateMap<Dentist, DentistModel>().ReverseMap();
         automapper.CreateMap<DataReport, DataReportRequest>().ReverseMap();
-        automapper.CreateMap<DataReport, DataReportResponse>().ReverseMap();
+        automapper.CreateMap<DataReport, DataReportModel>().ReverseMap();
+        automapper.CreateMap<DataReport, DataReportModel>().ReverseMap();
         automapper.CreateMap<Image, ImageResponse>().ReverseMap();
     }, typeof(ApplicationDbContext).Assembly);
 

@@ -149,14 +149,14 @@ public class AccountController(IConfiguration configuration, IMapper mapper, Use
     /// </returns>
     [HttpGet]
     [Authorize]
-    [SwaggerResponse(Status200OK, "The authenticated user's information", typeof(UserModel))]
+    [SwaggerResponse(Status200OK, "The authenticated user's information", typeof(GetSelfResponse))]
     [SwaggerResponse(Status404NotFound, "The user was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> GetSelfAsync()
     {
         var user = await userManager.GetUserAsync(User);
         if (user is null) return NotFound();
 
-        var response = mapper.Map<UserModel>(user);
+        var response = mapper.Map<GetSelfResponse>(user);
         return Ok(response);
     }
 
