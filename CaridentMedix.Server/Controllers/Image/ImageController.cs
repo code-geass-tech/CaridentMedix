@@ -391,11 +391,28 @@ public class ImageController(
     /// </returns>
     [Authorize]
     [HttpDelete("{id:int}")]
-    public async Task<IActionResult> DeleteReport(int id)
+    [SwaggerResponse(Status200OK, "The report is successfully deleted.")]
+    [SwaggerResponse(Status401Unauthorized, "User not found or not authorized.", typeof(ErrorResponse))]
+    [SwaggerResponse(Status404NotFound, "Report not found.", typeof(ErrorResponse))]
+    public async Task<IActionResult> DeleteReportAsync(int id)
     {
         var user = await userManager.GetUserAsync(User);
         if (user is null)
-            return Unauthorized();
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(User)
+                    }
+                ]
+            });
+        }
 
         var report = await db.DataReports
            .Include(report => report.Images)
@@ -403,15 +420,121 @@ public class ImageController(
            .FirstOrDefaultAsync(report => report.Id == id);
 
         if (report is null)
-            return NotFound();
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "Report not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "Report not found.",
+                        PropertyName = nameof(id)
+                    }
+                ]
+            });
+        }
 
         if (report.User != user)
-            return Unauthorized();
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "User not authorized.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "User not authorized.",
+                        PropertyName = nameof(User)
+                    }
+                ]
+            });
+        }
 
         db.DataReports.Remove(report);
         await db.SaveChangesAsync();
 
         return Ok();
+    }
+
+    /// <summary>
+    ///     Retrieves a specific image based on the provided id.
+    /// </summary>
+    /// <param name="id">The id of the image to retrieve.</param>
+    /// <returns>
+    ///     Returns an IActionResult:
+    ///     - Ok with the image data if the image is found and the user is authorized.
+    ///     - Unauthorized if the user is not found or does not match the user associated with the image.
+    ///     - NotFound if the image is not found.
+    /// </returns>
+    [Authorize]
+    [HttpGet("{id:int}")]
+    [SwaggerResponse(Status200OK, "The image data.", typeof(ImageModel))]
+    [SwaggerResponse(Status401Unauthorized, "User not found or not authorized.", typeof(ErrorResponse))]
+    [SwaggerResponse(Status404NotFound, "Image not found.", typeof(ErrorResponse))]
+    public async Task<IActionResult> GetImageAsync(int id)
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(User)
+                    }
+                ]
+            });
+        }
+
+        var image = await db.Images
+           .Include(image => image.User)
+           .FirstOrDefaultAsync(image => image.Id == id);
+
+        if (image is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "Image not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "Image not found.",
+                        PropertyName = nameof(id)
+                    }
+                ]
+            });
+        }
+
+        if (image.User != user)
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "User not authorized.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "User not authorized.",
+                        PropertyName = nameof(User)
+                    }
+                ]
+            });
+        }
+
+        var result = mapper.Map<ImageModel>(image);
+
+        return Ok(result);
     }
 
     /// <summary>
@@ -424,11 +547,27 @@ public class ImageController(
     /// </returns>
     [Authorize]
     [HttpGet]
-    public async Task<IActionResult> GetAnalyzedImages()
+    [SwaggerResponse(Status200OK, "The list of analyzed images.", typeof(List<ImageModel>))]
+    [SwaggerResponse(Status401Unauthorized, "User not found.", typeof(ErrorResponse))]
+    public async Task<IActionResult> GetImagesAsync()
     {
         var user = await userManager.GetUserAsync(User);
         if (user is null)
-            return Unauthorized();
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(User)
+                    }
+                ]
+            });
+        }
 
         var images = await db.Images
            .Where(image => image.User == user)
@@ -451,11 +590,28 @@ public class ImageController(
     /// </returns>
     [Authorize]
     [HttpGet("{id:int}")]
-    public async Task<IActionResult> GetReport(int id)
+    [SwaggerResponse(Status200OK, "The report data.", typeof(DataReportModel))]
+    [SwaggerResponse(Status401Unauthorized, "User not found or not authorized.", typeof(ErrorResponse))]
+    [SwaggerResponse(Status404NotFound, "Report not found.", typeof(ErrorResponse))]
+    public async Task<IActionResult> GetReportAsync(int id)
     {
         var user = await userManager.GetUserAsync(User);
         if (user is null)
-            return Unauthorized();
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(User)
+                    }
+                ]
+            });
+        }
 
         var report = await db.DataReports
            .Include(report => report.Images)
@@ -463,30 +619,75 @@ public class ImageController(
            .FirstOrDefaultAsync(report => report.Id == id);
 
         if (report is null)
-            return NotFound();
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "Report not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "Report not found.",
+                        PropertyName = nameof(id)
+                    }
+                ]
+            });
+        }
 
         if (report.User != user)
-            return Unauthorized();
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "User not authorized.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "User not authorized.",
+                        PropertyName = nameof(User)
+                    }
+                ]
+            });
+        }
 
-        return Ok(report);
+        var result = mapper.Map<DataReportModel>(report);
+
+        return Ok(result);
     }
 
     /// <summary>
-    ///     Retrieves reports based on the provided filter.
+    ///     Retrieves all the reports for the current user.
     /// </summary>
     /// <returns>
     ///     Returns an IActionResult:
     ///     - Unauthorized if the user is not found.
-    ///     - Ok with the list of reports that match the filter if the reports are successfully retrieved.
+    ///     - Ok with the list of reports if the reports are successfully retrieved.
     /// </returns>
     [Authorize]
-    [HttpPost]
-    [SwaggerResponse(Status200OK, "The list of reports of the user.", typeof(List<DataReportModel>))]
+    [HttpGet]
+    [SwaggerResponse(Status200OK, "The list of reports.", typeof(List<DataReportModel>))]
+    [SwaggerResponse(Status401Unauthorized, "User not found.", typeof(ErrorResponse))]
     public async Task<IActionResult> GetReportsAsync()
     {
         var user = await userManager.GetUserAsync(User);
         if (user is null)
-            return Unauthorized();
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(User)
+                    }
+                ]
+            });
+        }
 
         var reports = user.DataReports;
         var result = mapper.Map<List<DataReportModel>>(reports);
