@@ -365,6 +365,7 @@ public class ImageController(
         var dataReport = new DataReport
         {
             User = user,
+            Clinic = clinic,
             Images = images,
             Title = request.Title,
             Description = request.Description,

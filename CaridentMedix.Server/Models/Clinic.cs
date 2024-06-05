@@ -10,9 +10,9 @@ public class Clinic
 
     public virtual List<ApplicationUser> Admins { get; set; } = [];
 
-    public virtual List<DataReport> DataReports { get; set; } = [];
-
     public virtual List<Appointment> Appointments { get; set; } = [];
+
+    public virtual List<DataReport> DataReports { get; set; } = [];
 
     public virtual List<Dentist> Dentists { get; set; } = [];
 
