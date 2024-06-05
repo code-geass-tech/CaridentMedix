@@ -302,7 +302,7 @@ public class ImageController(
     [SwaggerResponse(Status200OK, "The created shared data report.", typeof(DataReportModel))]
     [SwaggerResponse(Status401Unauthorized, "User not found.", typeof(ErrorResponse))]
     [SwaggerResponse(Status404NotFound, "Clinic not found.", typeof(ErrorResponse))]
-    public async Task<IActionResult> CreateSharedDataReportAsync(CreateSharedDataReportRequest request)
+    public async Task<IActionResult> CreateReportAsync(CreateSharedDataReportRequest request)
     {
         var user = await userManager.GetUserAsync(User);
         if (user is null)
