@@ -20,6 +20,7 @@ namespace CaridentMedix.Server.Controllers.Image;
 [ApiController]
 [Route("[controller]/[action]")]
 public class ImageController(
+    ILogger<ImageController> logger,
     IConfiguration configuration,
     IMapper mapper,
     UserManager<ApplicationUser> userManager,
@@ -231,73 +232,8 @@ public class ImageController(
         if (user is null)
             return Unauthorized();
 
-        var userIdPath = Path.Combine("images", user.Id);
-        var basePath = Path.Combine("wwwroot", userIdPath);
-        Directory.CreateDirectory(basePath);
+        var imageResult = await AnalyzeImageInternal(user, file, threshold, iou, drawConfidence, drawNames);
 
-        var fileName = $"{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}_{file.FileName}";
-
-        var path = Path.Combine(basePath, fileName);
-        var plottedPath = Path.Combine(basePath, $"plotted_{fileName}");
-
-        await using var stream = new FileStream(path, FileMode.Create);
-        await file.CopyToAsync(stream);
-
-        using var yolo = new Yolo(configuration["YOLO:Model"]!, false);
-        using var image = await SixLabors.ImageSharp.Image.LoadAsync(file.OpenReadStream());
-        var results = yolo.RunObjectDetection(image, threshold, iou);
-
-        results = results.Select(x => new ObjectDetection
-        {
-            BoundingBox = x.BoundingBox,
-            Confidence = x.Confidence,
-            Label = new LabelModel
-            {
-                Index = x.Label.Index,
-                Name = x.Label.Name,
-                Color = configuration[$"YOLO:Colors:{x.Label.Name}"] ?? x.Label.Color
-            }
-        }).ToList();
-
-        if (!drawNames)
-        {
-            image.Draw(results.Select(x => new ObjectDetection
-            {
-                BoundingBox = x.BoundingBox,
-                Confidence = x.Confidence,
-                Label = new LabelModel
-                {
-                    Index = x.Label.Index,
-                    Name = string.Empty,
-                    Color = x.Label.Color
-                }
-            }).ToList(), drawConfidence);
-        }
-        else
-            image.Draw(results, drawConfidence);
-
-        await image.SaveAsync(plottedPath);
-
-        var imageResult = new Models.Image
-        {
-            User = user,
-            Name = fileName,
-            OriginalImagePath = $"images/{user.Id}/{fileName}",
-            PlottedImagePath = $"images/{user.Id}/plotted_{fileName}",
-            CreatedAt = DateTimeOffset.UtcNow,
-            Width = image.Width,
-            Height = image.Height,
-            Detections = results.Select(x => new Detection
-            {
-                ClassId = x.Label.Index,
-                ClassName = x.Label.Name,
-                Confidence = x.Confidence,
-                Height = x.BoundingBox.Height,
-                Width = x.BoundingBox.Width,
-                X = x.BoundingBox.X,
-                Y = x.BoundingBox.Y
-            }).ToList()
-        };
         await db.Images.AddAsync(imageResult);
         await db.SaveChangesAsync();
 
@@ -311,6 +247,9 @@ public class ImageController(
     /// </summary>
     /// <param name="files">The list of image files to be analyzed.</param>
     /// <param name="threshold">The threshold to use when analyzing the images.</param>
+    /// <param name="iou">The intersection over union to use when analyzing the images.</param>
+    /// <param name="drawConfidence">Whether to draw the confidence on the images.</param>
+    /// <param name="drawNames">Whether to draw the names on the images.</param>
     /// <returns>
     ///     Returns an IActionResult:
     ///     - BadRequest if the YOLO model is not found.
@@ -320,7 +259,9 @@ public class ImageController(
     [Authorize]
     [HttpPost]
     [SwaggerResponse(Status200OK, "The image analysis results.", typeof(List<Models.Image>))]
-    public async Task<IActionResult> AnalyzeImagesAsync(List<IFormFile> files, double threshold = 0.25)
+    public async Task<IActionResult> AnalyzeImagesAsync(IFormFile[] files,
+        double threshold = 0.25, float iou = 0.45f,
+        bool drawConfidence = true, bool drawNames = true)
     {
         if (string.IsNullOrEmpty(configuration["YOLO:Model"]))
             return BadRequest("YOLO model not found.");
@@ -329,49 +270,12 @@ public class ImageController(
         if (user is null)
             return Unauthorized();
 
-        var userIdPath = Path.Combine("images", user.Id);
-        var basePath = Path.Combine("wwwroot", userIdPath);
-        Directory.CreateDirectory(basePath);
-
         var imageResults = new List<Models.Image>();
 
         foreach (var file in files)
         {
-            var fileName = $"{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}_{file.FileName}";
+            var imageResult = await AnalyzeImageInternal(user, file, threshold, iou, drawConfidence, drawNames);
 
-            var path = Path.Combine(basePath, fileName);
-            var plottedPath = Path.Combine(basePath, $"plotted_{fileName}");
-
-            await using var stream = new FileStream(path, FileMode.Create);
-            await file.CopyToAsync(stream);
-
-            using var yolo = new Yolo(configuration["YOLO:Model"]!, false);
-            using var image = await SixLabors.ImageSharp.Image.LoadAsync(file.OpenReadStream());
-            var results = yolo.RunObjectDetection(image, threshold);
-
-            image.Draw(results);
-            await image.SaveAsync(plottedPath);
-
-            var imageResult = new Models.Image
-            {
-                User = user,
-                Name = fileName,
-                OriginalImagePath = $"images/{user.Id}/{fileName}",
-                PlottedImagePath = $"images/{user.Id}/plotted_{fileName}",
-                CreatedAt = DateTimeOffset.UtcNow,
-                Width = image.Width,
-                Height = image.Height,
-                Detections = results.Select(x => new Detection
-                {
-                    ClassId = x.Label.Index,
-                    ClassName = x.Label.Name,
-                    Confidence = x.Confidence,
-                    Height = x.BoundingBox.Height,
-                    Width = x.BoundingBox.Width,
-                    X = x.BoundingBox.X,
-                    Y = x.BoundingBox.Y
-                }).ToList()
-            };
             await db.Images.AddAsync(imageResult);
             imageResults.Add(imageResult);
         }
@@ -384,59 +288,95 @@ public class ImageController(
     }
 
     /// <summary>
-    ///     Creates a new report based on the provided image ids and user input.
+    ///     Creates a shared data report for a specific clinic.
     /// </summary>
-    /// <param name="report">The report data to create.</param>
+    /// <param name="request">The request to create the shared data report.</param>
     /// <returns>
     ///     Returns an IActionResult:
-    ///     - BadRequest if one or more image ids are invalid.
     ///     - Unauthorized if the user is not found.
-    ///     - Ok with the created report if the report is successfully created.
+    ///     - NotFound if the clinic is not found.
+    ///     - Ok with the created shared data report if the report is successfully created.
     /// </returns>
     [Authorize]
     [HttpPost]
-    [SwaggerResponse(Status200OK, "The created report.", typeof(DataReportModel))]
-    [SwaggerResponse(Status400BadRequest, "One or more image ids are invalid.", typeof(ErrorResponse))]
-    public async Task<IActionResult> CreateReportAsync(DataReportRequest report)
+    [SwaggerResponse(Status200OK, "The created shared data report.", typeof(DataReportModel))]
+    [SwaggerResponse(Status401Unauthorized, "User not found.", typeof(ErrorResponse))]
+    [SwaggerResponse(Status404NotFound, "Clinic not found.", typeof(ErrorResponse))]
+    public async Task<IActionResult> CreateSharedDataReportAsync(CreateSharedDataReportRequest request)
     {
-        if (!report.ImageIds.All(x => db.Images.Any(image => image.Id.ToString() == x)))
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
         {
-            return BadRequest(new ErrorResponse
+            return Unauthorized(new ErrorResponse
             {
-                Message = "One or more image ids are invalid.",
-                StatusCode = HttpStatusCode.BadRequest,
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.Unauthorized,
                 Details =
                 [
                     new ErrorDetail
                     {
-                        Message = "One or more image ids are invalid.",
-                        PropertyName = nameof(report.ImageIds)
+                        Message = "User not found.",
+                        PropertyName = nameof(User)
                     }
                 ]
             });
         }
 
-        var user = await userManager.GetUserAsync(User);
-        if (user is null)
-            return Unauthorized();
+        var images = await db.Images
+           .Where(image => request.ImageIds.Contains(image.Id))
+           .ToListAsync();
+
+        var invalidImageIds = request.ImageIds.Except(images.Select(image => image.Id)).ToList();
+        if (invalidImageIds.Count != 0)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "Image not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = invalidImageIds.Select(id => new ErrorDetail
+                {
+                    Message = $"Image {id} not found.",
+                    PropertyName = nameof(request.ImageIds)
+                }).ToList()
+            });
+        }
+
+        var clinic = await db.Clinics
+           .Include(clinic => clinic.DataReports)
+           .FirstOrDefaultAsync(clinic => clinic.Id == request.ClinicId);
+
+        if (clinic is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "Clinic not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "Clinic not found.",
+                        PropertyName = nameof(request.ClinicId)
+                    }
+                ]
+            });
+        }
 
         var dataReport = new DataReport
         {
             User = user,
-            Title = report.Title,
-            Description = report.Description,
-            CreatedAt = DateTimeOffset.UtcNow,
-            Images = await db.Images
-               .Where(image => report.ImageIds.Contains(image.Id.ToString()))
-               .ToListAsync()
+            Images = images,
+            Title = request.Title,
+            Description = request.Description,
+            CreatedAt = DateTimeOffset.UtcNow
         };
 
-        db.DataReports.Add(dataReport);
+        clinic.DataReports.Add(dataReport);
         await db.SaveChangesAsync();
 
-        var response = mapper.Map<DataReportModel>(dataReport);
+        var result = mapper.Map<DataReportModel>(dataReport);
 
-        return Ok(response);
+        return Ok(result);
     }
 
     /// <summary>
@@ -554,70 +494,76 @@ public class ImageController(
         return Ok(result);
     }
 
-    /// <summary>
-    ///     Shares a specific report with a specific clinic based on the provided report and clinic ids.
-    /// </summary>
-    /// <param name="sharedDataReportRequest">The shared data report request to process.</param>
-    /// <returns>
-    ///     Returns an IActionResult:
-    ///     - NotFound if the report or clinic is not found.
-    ///     - Unauthorized if the user is not found.
-    ///     - Ok with the updated report if the report is successfully shared with the clinic.
-    /// </returns>
-    [Authorize]
-    [HttpPost]
-    [SwaggerResponse(Status200OK, "The updated report.", typeof(DataReportModel))]
-    [SwaggerResponse(Status404NotFound, "The report or clinic is not found.", typeof(ErrorResponse))]
-    public async Task<IActionResult> ShareDataReportAsync(SharedDataReportRequest sharedDataReportRequest)
+    private async Task<Models.Image> AnalyzeImageInternal(
+        ApplicationUser user, IFormFile file,
+        double threshold, float iou,
+        bool drawConfidence, bool drawNames)
     {
-        var report = await db.DataReports
-           .Include(report => report.Images)
-           .Include(report => report.User)
-           .FirstOrDefaultAsync(report => report.Id == sharedDataReportRequest.DataReportId);
+        logger.LogInformation("Analyzing image {FileName} for user {UserId}", file.FileName, user.Id);
 
-        if (report is null)
+        var userIdPath = Path.Combine("images", user.Id);
+        var basePath = Path.Combine("wwwroot", userIdPath);
+        Directory.CreateDirectory(basePath);
+
+        var fileName = $"{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}_{file.FileName}";
+        var path = Path.Combine(basePath, fileName);
+        var plottedPath = Path.Combine(basePath, $"plotted_{fileName}");
+
+        logger.LogTrace("Saving image {FileName} to {Path}", file.FileName, path);
+        await using var stream = new FileStream(path, FileMode.Create);
+        await file.CopyToAsync(stream);
+        logger.LogTrace("Image {FileName} saved to {Path}", file.FileName, path);
+
+        logger.LogInformation("Loading YOLO model {Model}", configuration["YOLO:Model"]!);
+        using var yolo = new Yolo(configuration["YOLO:Model"]!, false);
+        logger.LogTrace("Loaded YOLO model {Model}", configuration["YOLO:Model"]!);
+
+        logger.LogTrace("Loading image {FileName}", file.FileName);
+        using var image = await SixLabors.ImageSharp.Image.LoadAsync(file.OpenReadStream());
+        logger.LogTrace("Loaded image {FileName}", file.FileName);
+
+        logger.LogInformation("Running object detection on image {FileName}", file.FileName);
+        var results = yolo.RunObjectDetection(image, threshold, iou);
+        logger.LogInformation("Object detection completed on image {FileName}", file.FileName);
+
+        logger.LogTrace("Drawing bounding boxes on image {FileName}", file.FileName);
+        image.Draw(results.Select(x => new ObjectDetection
         {
-            return NotFound(new ErrorResponse
+            BoundingBox = x.BoundingBox,
+            Confidence = x.Confidence,
+            Label = new LabelModel
             {
-                Message = "Report not found.",
-                StatusCode = HttpStatusCode.NotFound,
-                Details =
-                [
-                    new ErrorDetail
-                    {
-                        Message = "Report not found.",
-                        PropertyName = nameof(sharedDataReportRequest.DataReportId)
-                    }
-                ]
-            });
-        }
+                Index = x.Label.Index,
+                Name = drawNames ? x.Label.Name : string.Empty,
+                Color = configuration[$"YOLO:Colors:{x.Label.Name}"] ?? x.Label.Color
+            }
+        }), drawConfidence);
+        logger.LogTrace("Bounding boxes drawn on image {FileName}", file.FileName);
 
-        var clinic = await db.Clinics
-           .FirstOrDefaultAsync(clinic => clinic.Id == sharedDataReportRequest.ClinicId);
+        logger.LogTrace("Saving plotted image {FileName} to {Path}", file.FileName, plottedPath);
+        await image.SaveAsync(plottedPath);
+        logger.LogTrace("Plotted image {FileName} saved to {Path}", file.FileName, plottedPath);
 
-        if (clinic is null)
+        logger.LogInformation("Image {FileName} analyzed successfully", file.FileName);
+        return new Models.Image
         {
-            return NotFound(new ErrorResponse
+            User = user,
+            Name = fileName,
+            OriginalImagePath = $"images/{user.Id}/{fileName}",
+            PlottedImagePath = $"images/{user.Id}/plotted_{fileName}",
+            CreatedAt = DateTimeOffset.UtcNow,
+            Width = image.Width,
+            Height = image.Height,
+            Detections = results.Select(x => new Detection
             {
-                Message = "Clinic not found.",
-                StatusCode = HttpStatusCode.NotFound,
-                Details =
-                [
-                    new ErrorDetail
-                    {
-                        Message = "Clinic not found.",
-                        PropertyName = nameof(sharedDataReportRequest.ClinicId)
-                    }
-                ]
-            });
-        }
-
-        var user = await userManager.GetUserAsync(User);
-        if (user is null)
-            return Unauthorized();
-
-        clinic.DataReports.Add(report);
-
-        return Ok(report);
+                ClassId = x.Label.Index,
+                ClassName = x.Label.Name,
+                Confidence = x.Confidence,
+                Height = x.BoundingBox.Height,
+                Width = x.BoundingBox.Width,
+                X = x.BoundingBox.X,
+                Y = x.BoundingBox.Y
+            }).ToList()
+        };
     }
 }
