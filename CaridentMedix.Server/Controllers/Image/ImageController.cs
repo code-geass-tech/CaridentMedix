@@ -37,8 +37,8 @@ public class ImageController(
     ///     - Unauthorized if the user is not found.
     ///     - Ok with the updated report if the image is successfully added to the report.
     /// </returns>
-    [Authorize]
     [HttpPost]
+    [Authorize]
     [SwaggerResponse(Status200OK, "The updated report.", typeof(DataReportModel))]
     [SwaggerResponse(Status400BadRequest, "The image is already added to the report.", typeof(ErrorResponse))]
     [SwaggerResponse(Status404NotFound, "The image or report is not found.", typeof(ErrorResponse))]
@@ -140,8 +140,8 @@ public class ImageController(
     ///     - Unauthorized if the user is not found.
     ///     - Ok with the image analysis result if the image is successfully analyzed.
     /// </returns>
-    [Authorize]
     [HttpPost]
+    [Authorize]
     public async Task<IActionResult> AnalyzeImageAlternativeAsync(
         IFormFile file, float confidence = 0.3f, float iou = 0.45f)
     {
@@ -218,8 +218,8 @@ public class ImageController(
     ///     - Ok with the image analysis result if the image is successfully analyzed.
     /// </returns>
     /// z
-    [Authorize]
     [HttpPost]
+    [Authorize]
     [SwaggerResponse(Status200OK, "The image analysis result.", typeof(Models.Image))]
     public async Task<IActionResult> AnalyzeImageAsync(IFormFile file,
         double threshold = 0.25, float iou = 0.45f,
@@ -256,8 +256,8 @@ public class ImageController(
     ///     - Unauthorized if the user is not found.
     ///     - Ok with the image analysis results if the images are successfully analyzed.
     /// </returns>
-    [Authorize]
     [HttpPost]
+    [Authorize]
     [SwaggerResponse(Status200OK, "The image analysis results.", typeof(List<Models.Image>))]
     public async Task<IActionResult> AnalyzeImagesAsync(IFormFile[] files,
         double threshold = 0.25, float iou = 0.45f,
@@ -297,8 +297,8 @@ public class ImageController(
     ///     - NotFound if the clinic is not found.
     ///     - Ok with the created shared data report if the report is successfully created.
     /// </returns>
-    [Authorize]
     [HttpPost]
+    [Authorize]
     [SwaggerResponse(Status200OK, "The created shared data report.", typeof(DataReportModel))]
     [SwaggerResponse(Status401Unauthorized, "User not found.", typeof(ErrorResponse))]
     [SwaggerResponse(Status404NotFound, "Clinic not found.", typeof(ErrorResponse))]
@@ -546,8 +546,8 @@ public class ImageController(
     ///     - Unauthorized if the user is not found.
     ///     - Ok with the list of analyzed images if the images are successfully retrieved.
     /// </returns>
-    [Authorize]
     [HttpGet]
+    [Authorize]
     [SwaggerResponse(Status200OK, "The list of analyzed images.", typeof(List<ImageModel>))]
     [SwaggerResponse(Status401Unauthorized, "User not found.", typeof(ErrorResponse))]
     public async Task<IActionResult> GetImagesAsync()
@@ -666,8 +666,8 @@ public class ImageController(
     ///     - Unauthorized if the user is not found.
     ///     - Ok with the list of reports if the reports are successfully retrieved.
     /// </returns>
-    [Authorize]
     [HttpGet]
+    [Authorize]
     [SwaggerResponse(Status200OK, "The list of reports.", typeof(List<DataReportModel>))]
     [SwaggerResponse(Status401Unauthorized, "User not found.", typeof(ErrorResponse))]
     public async Task<IActionResult> GetReportsAsync()
