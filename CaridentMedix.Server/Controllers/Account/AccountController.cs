@@ -7,7 +7,6 @@ using CaridentMedix.Server.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Swashbuckle.AspNetCore.Annotations;
@@ -37,75 +36,32 @@ public class AccountController(
     [Authorize]
     [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
     [SwaggerResponse(Status400BadRequest, "A bad request response", typeof(ErrorResponse))]
+    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> ChangeNameAsync(string name)
     {
         var user = await userManager.GetUserAsync(User);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(name)
+                    }
+                }
+            });
+        }
 
         user.Name = name;
         var result = await userManager.UpdateAsync(user);
         return result.Succeeded
             ? Ok(new BaseResponse { Message = "Name changed successfully!" })
             : BadRequest(result.ToErrorResponse());
-    }
-
-    /// <summary>
-    ///     This method is responsible for creating an appointment.
-    /// </summary>
-    /// <param name="request">A model containing the appointment's information.</param>
-    /// <returns>
-    ///     An IActionResult that represents the result of the CreateAppointment action.
-    ///     If the creation is successful, it returns an OkResult with the appointment's information.
-    ///     If the creation fails, it returns a BadRequestObjectResult with the errors.
-    /// </returns>
-    [HttpPost]
-    [Authorize]
-    [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
-    [SwaggerResponse(Status400BadRequest, "A bad request response", typeof(ErrorResponse))]
-    public async Task<IActionResult> CreateAppointmentAsync(CreateAppointmentRequest request)
-    {
-        var user = await userManager.GetUserAsync(User);
-        if (user is null) return NotFound();
-
-        var clinic = await db.Clinics
-           .Include(clinic => clinic.Appointments)
-           .FirstOrDefaultAsync(clinic => clinic.Id == request.ClinicId)
-           .ConfigureAwait(false);
-
-        if (clinic is null)
-        {
-            return NotFound(new ErrorResponse
-            {
-                StatusCode = HttpStatusCode.NotFound,
-                Message = "The clinic was not found",
-                Details =
-                [
-                    new ErrorDetail
-                    {
-                        Message = "The clinic was not found",
-                        PropertyName = nameof(request.ClinicId)
-                    }
-                ]
-            });
-        }
-
-        var dentist = clinic.Dentists.FirstOrDefault(dentist => dentist.Id == request.DentistId);
-
-        var appointment = new Appointment
-        {
-            User = user,
-            Clinic = clinic,
-            CreatedAt = DateTimeOffset.UtcNow,
-            ScheduledAt = request.ScheduledAt.ToUniversalTime(),
-            Dentist = dentist
-        };
-
-        await db.Appointments.AddAsync(appointment);
-        await db.SaveChangesAsync();
-
-        var response = mapper.Map<AppointmentModel>(appointment);
-
-        return Ok(response);
     }
 
     /// <summary>
@@ -124,7 +80,22 @@ public class AccountController(
     public async Task<IActionResult> DeleteAvatarAsync()
     {
         var user = await userManager.GetUserAsync(User);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(user)
+                    }
+                }
+            });
+        }
 
         if (string.IsNullOrWhiteSpace(user.ImagePath))
         {
@@ -147,9 +118,9 @@ public class AccountController(
         user.ImagePath = null;
         var result = await userManager.UpdateAsync(user);
 
-        if (result.Succeeded) return Ok(new BaseResponse { Message = "Avatar deleted successfully!" });
-
-        return BadRequest(result.Errors);
+        return result.Succeeded
+            ? Ok(new BaseResponse { Message = "Avatar deleted successfully!" })
+            : BadRequest(result.ToErrorResponse());
     }
 
     /// <summary>
@@ -165,10 +136,26 @@ public class AccountController(
     [Authorize]
     [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
     [SwaggerResponse(Status400BadRequest, "A bad request response", typeof(ErrorResponse))]
+    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> EditPasswordAsync(SelfUserEditPasswordRequest request)
     {
         var user = await userManager.GetUserAsync(User);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(request)
+                    }
+                }
+            });
+        }
 
         var result = await userManager.ChangePasswordAsync(user, request.OldPassword, request.NewPassword);
         return result.Succeeded
@@ -193,7 +180,22 @@ public class AccountController(
     public async Task<IActionResult> EditSelfAsync(SelfUserEditRequest request)
     {
         var user = await userManager.GetUserAsync(User);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(request)
+                    }
+                }
+            });
+        }
 
         user.Name = request.Name ?? user.Name;
 
@@ -218,7 +220,22 @@ public class AccountController(
     public async Task<IActionResult> GetSelfAsync()
     {
         var user = await userManager.GetUserAsync(User);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(User)
+                    }
+                }
+            });
+        }
 
         var response = mapper.Map<GetSelfResponse>(user);
         return Ok(response);
@@ -240,12 +257,40 @@ public class AccountController(
     public async Task<IActionResult> LoginAsync([FromBody] LoginRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Email))
-            return BadRequest("Email is required.");
+        {
+            return BadRequest(new ErrorResponse
+            {
+                Message = "Email is required.",
+                StatusCode = HttpStatusCode.BadRequest,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "Email is required.",
+                        PropertyName = nameof(request.Email)
+                    }
+                }
+            });
+        }
 
         var user = await userManager.FindByEmailAsync(request.Email);
 
         if (user is null || !await userManager.CheckPasswordAsync(user, request.Password))
-            return Unauthorized("Invalid email or password.");
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "Invalid email or password.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "Invalid email or password.",
+                        PropertyName = nameof(request.Email)
+                    }
+                }
+            });
+        }
 
         var roles = await userManager.GetRolesAsync(user);
         var authClaims = new List<Claim>(roles.Select(role => new Claim(ClaimTypes.Role, role)))
@@ -323,7 +368,22 @@ public class AccountController(
     public async Task<IActionResult> UploadAvatarAsync(IFormFile avatar)
     {
         var user = await userManager.GetUserAsync(User);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(User)
+                    }
+                }
+            });
+        }
 
         var fileName = Path.GetRandomFileName() + Path.GetExtension(avatar.FileName);
         var filePath = Path.Combine("wwwroot", "avatars", fileName);
@@ -336,9 +396,9 @@ public class AccountController(
         user.ImagePath = $"/avatars/{fileName}";
         var result = await userManager.UpdateAsync(user);
 
-        if (result.Succeeded) return Ok(new BaseResponse { Message = "Avatar uploaded successfully!" });
-
-        return BadRequest(result.Errors);
+        return result.Succeeded
+            ? Ok(new BaseResponse { Message = "Avatar uploaded successfully!" })
+            : BadRequest(result.ToErrorResponse());
     }
 
     /// <summary>
@@ -433,7 +493,19 @@ public class AccountController(
         }
         catch (Exception e)
         {
-            return BadRequest(e.ToErrorResponse());
+            return BadRequest(new ErrorResponse
+            {
+                Message = e.Message,
+                StatusCode = HttpStatusCode.BadRequest,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = e.Message,
+                        PropertyName = nameof(token)
+                    }
+                }
+            });
         }
     }
 }
