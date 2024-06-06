@@ -1,4 +1,5 @@
-﻿using AutoMapper;
+﻿using System.Net;
+using AutoMapper;
 using CaridentMedix.Server.Controllers.Clinic;
 using CaridentMedix.Server.Controllers.Image;
 using CaridentMedix.Server.Models;
@@ -116,16 +117,40 @@ public class AdminController(
     [HttpPost]
     [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
     [SwaggerResponse(Status400BadRequest, "The operation failed", typeof(ErrorResponse))]
-    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(BaseResponse))]
+    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> AddUserToAdminRoleAsync(string userId)
     {
         var user = await userManager.FindByIdAsync(userId);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(userId)
+                    }
+                ]
+            });
+        }
 
         var result = await userManager.AddToRoleAsync(user, "Admin");
-        if (result.Succeeded) return Ok();
+        if (result.Succeeded) return Ok(new BaseResponse { Message = "User added to Admin role successfully" });
 
-        return BadRequest(result.Errors);
+        return BadRequest(new ErrorResponse
+        {
+            Message = "Failed to add user to Admin role.",
+            StatusCode = HttpStatusCode.BadRequest,
+            Details = result.Errors.Select(e => new ErrorDetail
+            {
+                Message = e.Description,
+                PropertyName = e.Code
+            }).ToList()
+        });
     }
 
     /// <summary>
@@ -141,16 +166,40 @@ public class AdminController(
     [HttpPost]
     [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
     [SwaggerResponse(Status400BadRequest, "The operation failed", typeof(ErrorResponse))]
-    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(BaseResponse))]
+    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> AddUserToAdminRoleByEmailAsync(string email)
     {
         var user = await userManager.FindByEmailAsync(email);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details =
+                [
+                    new ErrorDetail
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(email)
+                    }
+                ]
+            });
+        }
 
         var result = await userManager.AddToRoleAsync(user, "Admin");
-        if (result.Succeeded) return Ok();
+        if (result.Succeeded) return Ok(new BaseResponse { Message = "User added to Admin role successfully" });
 
-        return BadRequest(result.Errors);
+        return BadRequest(new ErrorResponse
+        {
+            Message = "Failed to add user to Admin role.",
+            StatusCode = HttpStatusCode.BadRequest,
+            Details = result.Errors.Select(e => new ErrorDetail
+            {
+                Message = e.Description,
+                PropertyName = e.Code
+            }).ToList()
+        });
     }
 
     /// <summary>
@@ -170,7 +219,21 @@ public class AdminController(
     public async Task<IActionResult> CreateClinicAsync(ClinicModel clinic)
     {
         if (db.Clinics.Any(c => c.Name == clinic.Name))
-            return BadRequest("A clinic with the same name already exists.");
+        {
+            return BadRequest(new ErrorResponse
+            {
+                Message = "A clinic with the same name already exists.",
+                StatusCode = HttpStatusCode.BadRequest,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "A clinic with the same name already exists.",
+                        PropertyName = nameof(clinic.Name)
+                    }
+                }
+            });
+        }
 
         var newClinic = mapper.Map<Models.Clinic>(clinic);
 
@@ -201,12 +264,36 @@ public class AdminController(
     public async Task<IActionResult> CreateRoleAsync(string roleName)
     {
         var roleExists = await roleManager.RoleExistsAsync(roleName);
-        if (roleExists) return BadRequest("Role already exists");
+        if (roleExists)
+        {
+            return BadRequest(new ErrorResponse
+            {
+                Message = "Role already exists.",
+                StatusCode = HttpStatusCode.BadRequest,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "Role already exists.",
+                        PropertyName = nameof(roleName)
+                    }
+                }
+            });
+        }
 
         var result = await roleManager.CreateAsync(new IdentityRole(roleName));
-        if (result.Succeeded) return Ok();
+        if (result.Succeeded) return Ok(new BaseResponse { Message = "Role created successfully" });
 
-        return BadRequest(result.Errors);
+        return BadRequest(new ErrorResponse
+        {
+            Message = "Failed to create role.",
+            StatusCode = HttpStatusCode.BadRequest,
+            Details = result.Errors.Select(e => new ErrorDetail
+            {
+                Message = e.Description,
+                PropertyName = e.Code
+            }).ToList()
+        });
     }
 
     /// <summary>
@@ -222,16 +309,40 @@ public class AdminController(
     [HttpDelete]
     [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
     [SwaggerResponse(Status400BadRequest, "The operation failed", typeof(ErrorResponse))]
-    [SwaggerResponse(Status404NotFound, "The role was not found", typeof(BaseResponse))]
+    [SwaggerResponse(Status404NotFound, "The role was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> DeleteRoleAsync(string roleId)
     {
         var role = await roleManager.FindByIdAsync(roleId);
-        if (role is null) return NotFound();
+        if (role is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "Role not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "Role not found.",
+                        PropertyName = nameof(roleId)
+                    }
+                }
+            });
+        }
 
         var result = await roleManager.DeleteAsync(role);
-        if (result.Succeeded) return Ok();
+        if (result.Succeeded) return Ok(new BaseResponse { Message = "Role deleted successfully" });
 
-        return BadRequest(result.Errors);
+        return BadRequest(new ErrorResponse
+        {
+            Message = "Failed to delete role.",
+            StatusCode = HttpStatusCode.BadRequest,
+            Details = result.Errors.Select(e => new ErrorDetail
+            {
+                Message = e.Description,
+                PropertyName = e.Code
+            }).ToList()
+        });
     }
 
     /// <summary>
@@ -247,19 +358,43 @@ public class AdminController(
     [HttpDelete]
     [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
     [SwaggerResponse(Status400BadRequest, "The operation failed", typeof(ErrorResponse))]
-    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(BaseResponse))]
+    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> DeleteUserAsync(string userId)
     {
         var user = await userManager.FindByIdAsync(userId);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(userId)
+                    }
+                }
+            });
+        }
 
         user.IsDeleted = true;
         await db.SaveChangesAsync();
 
         var result = await userManager.SetLockoutEnabledAsync(user, true);
-        if (result.Succeeded) return Ok();
+        if (result.Succeeded) return Ok(new BaseResponse { Message = "User deleted successfully" });
 
-        return BadRequest(result.Errors);
+        return BadRequest(new ErrorResponse
+        {
+            Message = "Failed to delete user.",
+            StatusCode = HttpStatusCode.BadRequest,
+            Details = result.Errors.Select(e => new ErrorDetail
+            {
+                Message = e.Description,
+                PropertyName = e.Code
+            }).ToList()
+        });
     }
 
     /// <summary>
@@ -275,19 +410,43 @@ public class AdminController(
     [HttpDelete]
     [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
     [SwaggerResponse(Status400BadRequest, "The operation failed", typeof(ErrorResponse))]
-    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(BaseResponse))]
+    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> DeleteUserByEmailAsync(string email)
     {
         var user = await userManager.FindByEmailAsync(email);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(email)
+                    }
+                }
+            });
+        }
 
         user.IsDeleted = true;
         await db.SaveChangesAsync();
 
         var result = await userManager.SetLockoutEnabledAsync(user, true);
-        if (result.Succeeded) return Ok();
+        if (result.Succeeded) return Ok(new BaseResponse { Message = "User deleted successfully" });
 
-        return BadRequest(result.Errors);
+        return BadRequest(new ErrorResponse
+        {
+            Message = "Failed to delete user.",
+            StatusCode = HttpStatusCode.BadRequest,
+            Details = result.Errors.Select(e => new ErrorDetail
+            {
+                Message = e.Description,
+                PropertyName = e.Code
+            }).ToList()
+        });
     }
 
     /// <summary>
@@ -301,11 +460,26 @@ public class AdminController(
     /// </returns>
     [HttpGet]
     [SwaggerResponse(Status200OK, "The user details", typeof(ApplicationUser))]
-    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(BaseResponse))]
+    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> GetUserByEmailAsync(string email)
     {
         var user = await userManager.FindByEmailAsync(email);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(email)
+                    }
+                }
+            });
+        }
 
         return Ok(user);
     }
@@ -321,11 +495,26 @@ public class AdminController(
     /// </returns>
     [HttpGet]
     [SwaggerResponse(Status200OK, "The user details", typeof(ApplicationUser))]
-    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(BaseResponse))]
+    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> GetUserByIdAsync(string userId)
     {
         var user = await userManager.FindByIdAsync(userId);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(userId)
+                    }
+                }
+            });
+        }
 
         return Ok(user);
     }
@@ -342,11 +531,26 @@ public class AdminController(
     [HttpGet]
     [Authorize(Roles = "Admin")]
     [SwaggerResponse(Status200OK, "A list of reports associated with the user", typeof(IEnumerable<DataReportModel>))]
-    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(BaseResponse))]
+    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> GetUserReportsAsync(string userId)
     {
         var user = await userManager.FindByIdAsync(userId);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(userId)
+                    }
+                }
+            });
+        }
 
         var reports = db.DataReports.Where(r => r.User.Id == userId).ToList();
         var reportsResponse = mapper.Map<IEnumerable<DataReportModel>>(reports);
@@ -366,11 +570,26 @@ public class AdminController(
     [HttpGet]
     [Authorize(Roles = "Admin")]
     [SwaggerResponse(Status200OK, "A list of reports associated with the user", typeof(IEnumerable<DataReportModel>))]
-    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(BaseResponse))]
+    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> GetUserReportsByEmailAsync(string email)
     {
         var user = await userManager.FindByEmailAsync(email);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(email)
+                    }
+                }
+            });
+        }
 
         var reports = db.DataReports.Where(r => r.User.Email == email).ToList();
         var reportsResponse = mapper.Map<IEnumerable<DataReportModel>>(reports);
@@ -391,16 +610,40 @@ public class AdminController(
     [HttpDelete]
     [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
     [SwaggerResponse(Status400BadRequest, "The operation failed", typeof(ErrorResponse))]
-    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(BaseResponse))]
+    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> RemoveUserFromAdminRoleAsync(string userId)
     {
         var user = await userManager.FindByIdAsync(userId);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(userId)
+                    }
+                }
+            });
+        }
 
         var result = await userManager.RemoveFromRoleAsync(user, "Admin");
-        if (result.Succeeded) return Ok();
+        if (result.Succeeded) return Ok(new BaseResponse { Message = "User removed from Admin role successfully" });
 
-        return BadRequest(result.Errors);
+        return BadRequest(new ErrorResponse
+        {
+            Message = "Failed to remove user from Admin role.",
+            StatusCode = HttpStatusCode.BadRequest,
+            Details = result.Errors.Select(e => new ErrorDetail
+            {
+                Message = e.Description,
+                PropertyName = e.Code
+            }).ToList()
+        });
     }
 
     /// <summary>
@@ -416,16 +659,40 @@ public class AdminController(
     [HttpDelete]
     [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
     [SwaggerResponse(Status400BadRequest, "The operation failed", typeof(ErrorResponse))]
-    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(BaseResponse))]
+    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> RemoveUserFromAdminRoleByEmailAsync(string email)
     {
         var user = await userManager.FindByEmailAsync(email);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(email)
+                    }
+                }
+            });
+        }
 
         var result = await userManager.RemoveFromRoleAsync(user, "Admin");
-        if (result.Succeeded) return Ok();
+        if (result.Succeeded) return Ok(new BaseResponse { Message = "User removed from Admin role successfully" });
 
-        return BadRequest(result.Errors);
+        return BadRequest(new ErrorResponse
+        {
+            Message = "Failed to remove user from Admin role.",
+            StatusCode = HttpStatusCode.BadRequest,
+            Details = result.Errors.Select(e => new ErrorDetail
+            {
+                Message = e.Description,
+                PropertyName = e.Code
+            }).ToList()
+        });
     }
 
     /// <summary>
@@ -442,11 +709,26 @@ public class AdminController(
     [HttpPut]
     [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
     [SwaggerResponse(Status400BadRequest, "The operation failed", typeof(ErrorResponse))]
-    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(BaseResponse))]
+    [SwaggerResponse(Status404NotFound, "The user was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> UpdateUserAsync(string userId, AdminUserEditRequest user)
     {
         var existingUser = await userManager.FindByIdAsync(userId);
-        if (existingUser is null) return NotFound();
+        if (existingUser is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "User not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = new List<ErrorDetail>
+                {
+                    new()
+                    {
+                        Message = "User not found.",
+                        PropertyName = nameof(userId)
+                    }
+                }
+            });
+        }
 
         existingUser.UserName = user.Email ?? existingUser.UserName;
         existingUser.Email = user.Email ?? existingUser.Email;
@@ -454,8 +736,17 @@ public class AdminController(
         existingUser.IsDeleted = user.IsDeleted ?? existingUser.IsDeleted;
 
         var result = await userManager.UpdateAsync(existingUser);
-        if (result.Succeeded) return Ok();
+        if (result.Succeeded) return Ok(new BaseResponse { Message = "User updated successfully" });
 
-        return BadRequest(result.Errors);
+        return BadRequest(new ErrorResponse
+        {
+            Message = "Failed to update user.",
+            StatusCode = HttpStatusCode.BadRequest,
+            Details = result.Errors.Select(e => new ErrorDetail
+            {
+                Message = e.Description,
+                PropertyName = e.Code
+            }).ToList()
+        });
     }
 }
