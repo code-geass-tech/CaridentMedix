@@ -16,6 +16,8 @@ public class Clinic
 
     public virtual List<Dentist> Dentists { get; set; } = [];
 
+    public virtual List<TimeSlot> TimeSlots { get; set; } = [];
+
     public string Address { get; set; } = null!;
 
     public string Name { get; set; } = null!;

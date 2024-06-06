@@ -237,6 +237,28 @@ public class AdminController(
 
         var newClinic = mapper.Map<Models.Clinic>(clinic);
 
+        var businessDays = new List<DayOfWeek>
+        {
+            DayOfWeek.Monday,
+            DayOfWeek.Tuesday,
+            DayOfWeek.Wednesday,
+            DayOfWeek.Thursday,
+            DayOfWeek.Friday
+        };
+
+        var businessHourStart = new TimeOnly(8, 0, 0);
+        var businessHourEnd = new TimeOnly(17, 0, 0);
+
+        foreach (var dayOfWeek in businessDays)
+        {
+            newClinic.TimeSlots.Add(new TimeSlot
+            {
+                DayOfWeek = dayOfWeek,
+                StartTime = businessHourStart,
+                EndTime = businessHourEnd
+            });
+        }
+
         db.Clinics.Add(newClinic);
         await db.SaveChangesAsync();
 
