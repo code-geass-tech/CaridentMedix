@@ -65,15 +65,30 @@ try
     {
         options.SwaggerDoc("v1", new OpenApiInfo
         {
-            Version = "v1",
-            Title = "CaridentMedix API",
-            Description = "An ASP.NET Core Web API for the Carident Medix system.",
+            Version = configuration["Swagger:Version"],
+            Title = configuration["Swagger:Title"],
+            Description = configuration["Swagger:Description"],
             License = new OpenApiLicense
             {
-                Name = "MIT License",
-                Url = new Uri("https://opensource.org/license/mit")
-            }
+                Name = configuration["Swagger:License:Name"],
+                Url = new Uri(configuration["Swagger:License:Url"]!)
+            },
+            Contact = new OpenApiContact
+            {
+                Name = configuration["Swagger:Contact:Name"],
+                Url = new Uri(configuration["Swagger:Contact:Url"]!)
+            },
+            TermsOfService = new Uri(configuration["Swagger:TermsOfService"]!)
         });
+
+        foreach (var server in configuration.GetSection("Swagger:Servers").GetChildren())
+        {
+            options.AddServer(new OpenApiServer
+            {
+                Url = server["Url"],
+                Description = server["Description"]
+            });
+        }
 
         options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
         {
