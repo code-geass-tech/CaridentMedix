@@ -31,6 +31,11 @@ public class Image
     public int Width { get; set; }
 
     /// <summary>
+    ///     A list of data reports associated with the image.
+    /// </summary>
+    public virtual List<DataReport> DataReports { get; set; } = [];
+
+    /// <summary>
     ///     A list of detections found in the image.
     /// </summary>
     public virtual List<Detection> Detections { get; set; } = [];

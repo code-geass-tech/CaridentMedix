@@ -13,4 +13,14 @@ public class Appointment
     public virtual Dentist? Dentist { get; set; }
 
     public int Id { get; set; }
+
+    public string Status { get; set; }
+
+    public string? ClinicCancelMessage { get; set; }
+
+    public string? ClinicMessage { get; set; }
+
+    public string? UserCancelMessage { get; set; }
+
+    public string? UserMessage { get; set; } = null!;
 }

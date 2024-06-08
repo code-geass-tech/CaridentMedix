@@ -8,8 +8,6 @@ public class TimeSlot
 
     public int Id { get; set; }
 
-    public List<Appointment> Appointments { get; set; } = [];
-
     public TimeOnly EndTime { get; set; }
 
     public TimeOnly StartTime { get; set; }

@@ -2,6 +2,8 @@
 
 public class CreateAppointmentRequest
 {
+    public DateOnly Date { get; set; }
+
     public DateTimeOffset ScheduledAt { get; set; }
 
     public int ClinicId { get; set; }
