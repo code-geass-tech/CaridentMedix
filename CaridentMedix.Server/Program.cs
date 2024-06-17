@@ -51,6 +51,7 @@ try
         automapper.UseEntityFrameworkCoreModel<ApplicationDbContext>(serviceProvider);
 
         automapper.CreateMap<ApplicationUser, GetSelfResponse>().ReverseMap();
+        automapper.CreateMap<ApplicationUser, DataReportUserModel>().ReverseMap();
         automapper.CreateMap<Clinic, ClinicModel>().ReverseMap();
         automapper.CreateMap<Dentist, DentistModel>().ReverseMap();
         automapper.CreateMap<DataReport, DataReportRequest>().ReverseMap();

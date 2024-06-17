@@ -2,6 +2,8 @@
 
 public class DataReportModel
 {
+    public DataReportUserModel User { get; set; } = null!;
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public int Id { get; set; }
@@ -11,4 +13,11 @@ public class DataReportModel
     public string Description { get; set; } = null!;
 
     public string Title { get; set; } = null!;
+}
+
+public class DataReportUserModel
+{
+    public string? ImagePath { get; set; }
+
+    public string? Name { get; set; }
 }
