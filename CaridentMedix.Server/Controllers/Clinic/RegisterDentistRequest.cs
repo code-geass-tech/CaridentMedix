@@ -7,4 +7,6 @@ public class RegisterDentistRequest
     public string Name { get; init; } = null!;
 
     public string PhoneNumber { get; init; } = null!;
+
+    public int? ClinicId { get; set; }
 }

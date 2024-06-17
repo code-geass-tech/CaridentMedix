@@ -14,6 +14,7 @@ namespace CaridentMedix.Server.Controllers.Clinic;
 /// <summary>
 ///     ClinicController is a controller that handles operations related to clinics.
 /// </summary>
+[Authorize]
 [ApiController]
 [Route("[controller]/[action]")]
 public class ClinicController(
@@ -32,16 +33,43 @@ public class ClinicController(
     ///     If the registration fails, it returns a BadRequestObjectResult with the errors.
     /// </returns>
     [HttpPost]
-    [Authorize]
-    [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
+    [SwaggerResponse(Status200OK, "A success message", typeof(DentistModel))]
     [SwaggerResponse(Status400BadRequest, "A bad request response", typeof(ErrorResponse))]
+    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action", typeof(ErrorResponse))]
+    [SwaggerResponse(Status404NotFound, "The clinic was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> AddDentistAsync([FromBody] RegisterDentistRequest request)
     {
         var user = await userManager.GetUserAsync(User);
-        if (user is null) return Unauthorized();
+        if (user is null)
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User not found." }]
+            });
+        }
 
-        if (!user.IsClinicAdmin) return Unauthorized("You are not authorized to perform this action.");
-        if (user.Clinic is null) return BadRequest("You must be associated with a clinic to register a dentist.");
+        var clinic = request.ClinicId is null ? user.Clinic : await db.Clinics.FirstOrDefaultAsync(c => c.Id == request.ClinicId);
+        if (clinic is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "You are not associated with a clinic. Please provide a clinic ID if you are not associated with a clinic.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = [new ErrorDetail { PropertyName = nameof(request.ClinicId), Message = "Clinic not found." }]
+            });
+        }
+
+        if (clinic.Admins.All(x => x.Id != user.Id) && !await userManager.IsInRoleAsync(user, "Admin"))
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User is not a clinic admin." }]
+            });
+        }
 
         var dentist = new Dentist
         {
@@ -50,26 +78,36 @@ public class ClinicController(
             PhoneNumber = request.PhoneNumber
         };
 
-        user.Clinic.Dentists.Add(dentist);
+        clinic.Dentists.Add(dentist);
         await userManager.UpdateAsync(user);
 
-        return Ok(new BaseResponse { Message = "Dentist created successfully!" });
+        var response = mapper.Map<DentistModel>(dentist);
+
+        return Ok(response);
     }
 
     /// <summary>
     ///     Asynchronously adds a user to the clinic admin role.
     /// </summary>
     /// <param name="userId">The user's unique identifier.</param>
+    /// <param name="clinicId">The clinic's unique identifier.</param>
     /// <returns>An IActionResult that represents the result of the AddUserToClinicAdmin action.</returns>
     [HttpPost]
-    [Authorize]
     [SwaggerResponse(Status200OK, "The user was successfully added to the clinic admin role")]
-    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action")]
-    [SwaggerResponse(Status404NotFound, "The user or clinic was not found")]
-    public async Task<IActionResult> AddUserToClinicAdminAsync(string userId)
+    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action", typeof(ErrorResponse))]
+    [SwaggerResponse(Status404NotFound, "The user or clinic was not found", typeof(ErrorResponse))]
+    public async Task<IActionResult> AddUserToClinicAdminAsync(string userId, int? clinicId = null)
     {
         var currentUser = await userManager.GetUserAsync(User);
-        if (currentUser is null || !currentUser.IsClinicAdmin) return Unauthorized();
+        if (currentUser is null)
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User is not a clinic admin." }]
+            });
+        }
 
         var user = await userManager.FindByIdAsync(userId);
         if (user is null)
@@ -78,58 +116,59 @@ public class ClinicController(
             {
                 Message = "The user was not found.",
                 StatusCode = HttpStatusCode.NotFound,
-                Details =
-                [
-                    new ErrorDetail
-                    {
-                        PropertyName = nameof(userId),
-                        Message = "The user was not found."
-                    }
-                ]
+                Details = [new ErrorDetail { PropertyName = nameof(userId), Message = "The user was not found." }]
             });
         }
 
-        var clinic = currentUser.Clinic;
+        var clinic = clinicId is null ? currentUser.Clinic : await db.Clinics.FirstOrDefaultAsync(c => c.Id == clinicId);
         if (clinic is null)
         {
-            return Unauthorized(new ErrorResponse
+            return NotFound(new ErrorResponse
             {
                 Message = "You are not associated with a clinic.",
                 StatusCode = HttpStatusCode.NotFound,
-                Details =
-                [
-                    new ErrorDetail
-                    {
-                        PropertyName = nameof(currentUser),
-                        Message = "You are not associated with a clinic."
-                    }
-                ]
+                Details = [new ErrorDetail { PropertyName = nameof(clinicId), Message = "Clinic not found." }]
             });
         }
 
         if (clinic.Admins.All(x => x.Id != user.Id) && !await userManager.IsInRoleAsync(currentUser, "Admin"))
-            return Unauthorized();
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to add this user to the clinic admin role.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User is not authorized." }]
+            });
+        }
 
         clinic.Admins.Add(user);
         await db.SaveChangesAsync();
 
-        return Ok();
+        return Ok(new BaseResponse { Message = "User added to clinic admin role successfully!" });
     }
 
     /// <summary>
     ///     Asynchronously adds a user to the clinic admin role using the user's email.
     /// </summary>
     /// <param name="userEmail">The user's email.</param>
+    /// <param name="clinicId">The clinic's unique identifier.</param>
     /// <returns>An IActionResult that represents the result of the AddUserToClinicAdminByEmailAsync action.</returns>
     [HttpPost]
-    [Authorize]
     [SwaggerResponse(Status200OK, "The user was successfully added to the clinic admin role")]
-    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action")]
-    [SwaggerResponse(Status404NotFound, "The user or clinic was not found")]
-    public async Task<IActionResult> AddUserToClinicAdminByEmailAsync(string userEmail)
+    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action", typeof(ErrorResponse))]
+    [SwaggerResponse(Status404NotFound, "The user or clinic was not found", typeof(ErrorResponse))]
+    public async Task<IActionResult> AddUserToClinicAdminByEmailAsync(string userEmail, int? clinicId = null)
     {
         var currentUser = await userManager.GetUserAsync(User);
-        if (currentUser is null || !currentUser.IsClinicAdmin) return Unauthorized();
+        if (currentUser is null)
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User is not a clinic admin." }]
+            });
+        }
 
         var user = await userManager.FindByEmailAsync(userEmail);
         if (user is null)
@@ -138,37 +177,30 @@ public class ClinicController(
             {
                 Message = "The user was not found.",
                 StatusCode = HttpStatusCode.NotFound,
-                Details =
-                [
-                    new ErrorDetail
-                    {
-                        PropertyName = nameof(userEmail),
-                        Message = "The user was not found."
-                    }
-                ]
+                Details = [new ErrorDetail { PropertyName = nameof(userEmail), Message = "The user was not found." }]
             });
         }
 
-        var clinic = currentUser.Clinic;
+        var clinic = clinicId is null ? currentUser.Clinic : await db.Clinics.FirstOrDefaultAsync(c => c.Id == clinicId);
         if (clinic is null)
         {
-            return Unauthorized(new ErrorResponse
+            return NotFound(new ErrorResponse
             {
                 Message = "You are not associated with a clinic.",
                 StatusCode = HttpStatusCode.NotFound,
-                Details =
-                [
-                    new ErrorDetail
-                    {
-                        PropertyName = nameof(currentUser),
-                        Message = "You are not associated with a clinic."
-                    }
-                ]
+                Details = [new ErrorDetail { PropertyName = nameof(clinicId), Message = "Clinic not found." }]
             });
         }
 
         if (clinic.Admins.All(x => x.Id != user.Id) && !await userManager.IsInRoleAsync(currentUser, "Admin"))
-            return Unauthorized();
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to add this user to the clinic admin role.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User is not authorized." }]
+            });
+        }
 
         clinic.Admins.Add(user);
         await db.SaveChangesAsync();
@@ -177,18 +209,46 @@ public class ClinicController(
     }
 
     /// <summary>
-    ///     Asynchronously creates a new clinic.
+    ///     Asynchronously deletes a clinic.
     /// </summary>
     /// <param name="clinicId">The unique identifier of the clinic.</param>
-    /// <returns>An IActionResult that represents the result of the CreateClinic action.</returns>
-    [HttpDelete]
-    [Authorize(Roles = "Admin")]
+    /// <returns>An IActionResult that represents the result of the DeleteClinic action.</returns>
+    [HttpDelete("{clinicId:int}")]
     [SwaggerResponse(Status200OK, "The clinic was successfully deleted")]
-    [SwaggerResponse(Status404NotFound, "The clinic was not found")]
+    [SwaggerResponse(Status404NotFound, "The clinic was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> DeleteClinicAsync(int clinicId)
     {
-        var clinic = await db.Clinics.FindAsync(clinicId);
-        if (clinic is null) return NotFound();
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User not found." }]
+            });
+        }
+
+        var clinic = await db.Clinics.Include(clinic => clinic.Admins).FirstOrDefaultAsync(c => c.Id == clinicId);
+        if (clinic is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "You are not associated with a clinic. Please provide a clinic ID if you are not associated with a clinic.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = [new ErrorDetail { PropertyName = nameof(clinicId), Message = "Clinic not found." }]
+            });
+        }
+
+        if (clinic.Admins.All(x => x.Id != user.Id) && !await userManager.IsInRoleAsync(user, "Admin"))
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User is not a clinic admin." }]
+            });
+        }
 
         db.Clinics.Remove(clinic);
         await db.SaveChangesAsync();
@@ -200,30 +260,66 @@ public class ClinicController(
     ///     Asynchronously deletes a shared report.
     /// </summary>
     /// <param name="reportId">The unique identifier of the shared report.</param>
+    /// <param name="clinicId">The clinic's unique identifier.</param>
     /// <returns>
     ///     An IActionResult that represents the result of the DeleteSharedReportAsync action.
     ///     If the deletion is successful, it returns an OkResult.
     ///     If the deletion fails, it returns a BadRequestObjectResult with an error message.
     /// </returns>
-    [HttpDelete]
-    [Authorize]
+    [HttpDelete("{reportId:int}")]
     [SwaggerResponse(Status200OK, "The shared report was successfully deleted")]
-    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action")]
-    public async Task<IActionResult> DeleteSharedReportAsync(int reportId)
+    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action", typeof(ErrorResponse))]
+    [SwaggerResponse(Status404NotFound, "The report was not found", typeof(ErrorResponse))]
+    [SwaggerResponse(Status400BadRequest, "A bad request response", typeof(ErrorResponse))]
+    public async Task<IActionResult> DeleteSharedReportAsync(int reportId, int? clinicId = null)
     {
         var user = await userManager.GetUserAsync(User);
-        if (user is null) return Unauthorized();
+        if (user is null)
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User not found." }]
+            });
+        }
 
-        var clinic = user.Clinic;
-        if (clinic is null) return BadRequest("You must be associated with a clinic to delete a shared report.");
+        var clinic = clinicId is null ? user.Clinic : await db.Clinics.FirstOrDefaultAsync(c => c.Id == clinicId);
+        if (clinic is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "You are not associated with a clinic. Please provide a clinic ID if you are not associated with a clinic.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = [new ErrorDetail { PropertyName = nameof(clinicId), Message = "Clinic not found." }]
+            });
+        }
+
+        if (clinic.Admins.All(x => x.Id != user.Id) && !await userManager.IsInRoleAsync(user, "Admin"))
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User is not a clinic admin." }]
+            });
+        }
 
         var report = clinic.DataReports.FirstOrDefault(report => report.Id == reportId);
-        if (report is null) return NotFound("The report was not found.");
+        if (report is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "The report was not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = [new ErrorDetail { PropertyName = nameof(reportId), Message = "Report not found." }]
+            });
+        }
 
         clinic.DataReports.Remove(report);
         await db.SaveChangesAsync();
 
-        return Ok();
+        return Ok(new BaseResponse { Message = "Report deleted successfully!" });
     }
 
     /// <summary>
@@ -231,9 +327,12 @@ public class ClinicController(
     /// </summary>
     /// <param name="latitude">The latitude of the user's location.</param>
     /// <param name="longitude">The longitude of the user's location.</param>
+    /// <param name="radiusKm">The radius in kilometers from the user's location.</param>
     /// <returns>The list of clinics ordered by distance from the user's location.</returns>
     [HttpGet]
+    [AllowAnonymous]
     [SwaggerResponse(Status200OK, "A list of clinics", typeof(List<ClinicModel>))]
+    [SwaggerResponse(Status400BadRequest, "A bad request response", typeof(ErrorResponse))]
     public async Task<IActionResult> FindNearbyClinics(float latitude, float longitude, float radiusKm = 50)
     {
         var clinics = await db.Clinics.ToListAsync();
@@ -244,12 +343,83 @@ public class ClinicController(
             clinic.Distance = Distance(clinic.Longitude, clinic.Latitude);
         }
 
-        clinicModels = clinicModels.OrderBy(clinic => clinic.Distance).ToList();
+        clinicModels = clinicModels
+           .Where(clinic => clinic.Distance <= radiusKm)
+           .OrderBy(clinic => clinic.Distance)
+           .ToList();
 
         return Ok(clinicModels);
 
         double Distance(float clinicLongitude, float clinicLatitude)
-            => Math.Sqrt(Math.Pow(clinicLongitude - longitude, 2) + Math.Pow(clinicLatitude - latitude, 2));
+        {
+            const double earthRadiusKm = 6371;
+            var dLat = DegreesToRadians(clinicLatitude - latitude);
+            var dLon = DegreesToRadians(clinicLongitude - longitude);
+
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                    Math.Cos(DegreesToRadians(latitude)) * Math.Cos(DegreesToRadians(clinicLatitude)) *
+                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            return earthRadiusKm * c;
+
+            static double DegreesToRadians(double degrees) => degrees * Math.PI / 180;
+        }
+    }
+
+    /// <summary>
+    ///     Asynchronously retrieves a list of clinic admins associated with the user.
+    /// </summary>
+    /// <returns>
+    ///     A task that represents the asynchronous operation. The task result contains an IActionResult that can be one of the
+    ///     following:
+    ///     - A result that represents a status code 200 (OK) with a list of clinic admins.
+    ///     - A result that represents a status code 500 (Internal Server Error) if an exception was thrown.
+    /// </returns>
+    [HttpGet]
+    [SwaggerResponse(Status200OK, "A list of clinic admins", typeof(List<ApplicationUser>))]
+    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action", typeof(ErrorResponse))]
+    [SwaggerResponse(Status400BadRequest, "A bad request response", typeof(ErrorResponse))]
+    public async Task<IActionResult> GetClinicAdminsAsync(int? clinicId)
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User not found." }]
+            });
+        }
+
+        var clinic = clinicId is null ? user.Clinic : await db.Clinics.FirstOrDefaultAsync(c => c.Id == clinicId);
+        if (clinic is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "You are not associated with a clinic. Please provide a clinic ID if you are not associated with a clinic.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = [new ErrorDetail { PropertyName = nameof(clinicId), Message = "Clinic not found." }]
+            });
+        }
+
+        if (clinic.Admins.All(x => x.Id != user.Id) && !await userManager.IsInRoleAsync(user, "Admin"))
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User is not a clinic admin." }]
+            });
+        }
+
+        var result = clinic.Admins
+           .Select(mapper.Map<ApplicationUser>)
+           .OrderBy(admin => admin.UserName)
+           .ToList();
+
+        return Ok(result);
     }
 
     /// <summary>
@@ -263,14 +433,23 @@ public class ClinicController(
     ///     - A result that represents a status code 404 (Not Found) if the clinic was not found.
     /// </returns>
     [HttpGet]
-    [SwaggerResponse(Status200OK, "A list of clinics", typeof(List<ClinicModel>))]
-    [SwaggerResponse(Status500InternalServerError, "An exception was thrown")]
+    [AllowAnonymous]
+    [SwaggerResponse(Status200OK, "A clinic object", typeof(ClinicModel))]
+    [SwaggerResponse(Status404NotFound, "The clinic was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> GetClinicAsync(int clinicId)
     {
         var clinic = await db.Clinics
            .Include(clinic => clinic.Dentists)
            .FirstOrDefaultAsync(clinic => clinic.Id == clinicId);
-        if (clinic is null) return NotFound();
+        if (clinic is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "The clinic was not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = [new ErrorDetail { PropertyName = nameof(clinicId), Message = "Clinic not found." }]
+            });
+        }
 
         var clinicModel = mapper.Map<ClinicModel>(clinic);
         return Ok(clinicModel);
@@ -293,7 +472,9 @@ public class ClinicController(
     ///     - A result that represents a status code 500 (Internal Server Error) if an exception was thrown.
     /// </returns>
     [HttpGet]
+    [AllowAnonymous]
     [SwaggerResponse(Status200OK, "A list of clinics", typeof(List<ClinicModel>))]
+    [SwaggerResponse(Status400BadRequest, "A bad request response", typeof(ErrorResponse))]
     public Task<IActionResult> GetClinicsAsync(
         string? generalSearch, string? name, string? email, string? phoneNumber,
         string? address, string? description, string? website)
@@ -411,6 +592,52 @@ public class ClinicController(
     }
 
     /// <summary>
+    ///     Asynchronously retrieves a list of dentists associated with the user.
+    /// </summary>
+    /// <returns>
+    ///     A task that represents the asynchronous operation. The task result contains an IActionResult that can be one of the
+    ///     following:
+    ///     - A result that represents a status code 200 (OK) with a list of dentists.
+    ///     - A result that represents a status code 500 (Internal Server Error) if an exception was thrown.
+    /// </returns>
+    [HttpGet]
+    [AllowAnonymous]
+    [SwaggerResponse(Status200OK, "A list of dentists", typeof(List<DentistModel>))]
+    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action", typeof(ErrorResponse))]
+    [SwaggerResponse(Status400BadRequest, "A bad request response", typeof(ErrorResponse))]
+    public async Task<IActionResult> GetDentistsAsync(int? clinicId = null)
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User not found." }]
+            });
+        }
+
+        var clinic = clinicId is null ? user.Clinic : await db.Clinics.FirstOrDefaultAsync(c => c.Id == clinicId);
+        if (clinic is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "You are not associated with a clinic. Please provide a clinic ID if you are not associated with a clinic.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = [new ErrorDetail { PropertyName = nameof(clinicId), Message = "Clinic not found." }]
+            });
+        }
+
+        var result = clinic.Dentists
+           .Select(mapper.Map<DentistModel>)
+           .OrderBy(dentist => dentist.Name)
+           .ToList();
+
+        return Ok(result);
+    }
+
+    /// <summary>
     ///     Asynchronously retrieves a list of clinics associated with the user.
     /// </summary>
     /// <returns>
@@ -420,16 +647,42 @@ public class ClinicController(
     ///     - A result that represents a status code 500 (Internal Server Error) if an exception was thrown.
     /// </returns>
     [HttpGet]
-    [Authorize]
-    [SwaggerResponse(Status200OK, "A list of clinics", typeof(List<ClinicModel>))]
-    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action")]
-    public async Task<IActionResult> GetSharedReportsAsync()
+    [SwaggerResponse(Status200OK, "A list of clinics", typeof(List<DataReportModel>))]
+    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action", typeof(ErrorResponse))]
+    [SwaggerResponse(Status400BadRequest, "A bad request response", typeof(ErrorResponse))]
+    public async Task<IActionResult> GetSharedReportsAsync(int? clinicId = null)
     {
         var user = await userManager.GetUserAsync(User);
-        if (user is null) return Unauthorized();
+        if (user is null)
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User not found." }]
+            });
+        }
 
-        var clinic = user.Clinic;
-        if (clinic is null) return BadRequest("You must be associated with a clinic to view shared reports.");
+        var clinic = clinicId is null ? user.Clinic : await db.Clinics.FirstOrDefaultAsync(c => c.Id == clinicId);
+        if (clinic is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "You are not associated with a clinic. Please provide a clinic ID if you are not associated with a clinic.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = [new ErrorDetail { PropertyName = nameof(clinicId), Message = "Clinic not found." }]
+            });
+        }
+
+        if (clinic.Admins.All(x => x.Id != user.Id) && !await userManager.IsInRoleAsync(user, "Admin"))
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User is not a clinic admin." }]
+            });
+        }
 
         var result = clinic.DataReports
            .Select(mapper.Map<DataReportModel>)
@@ -443,27 +696,63 @@ public class ClinicController(
     ///     Asynchronously removes a dentist from the clinic.
     /// </summary>
     /// <param name="dentistId">The unique identifier of the dentist.</param>
+    /// <param name="clinicId">The clinic's unique identifier.</param>
     /// <returns>
     ///     An IActionResult that represents the result of the RemoveDentistAsync action.
     ///     If the removal is successful, it returns an OkResult with a success message.
     ///     If the removal fails, it returns a BadRequestObjectResult with an error message.
     /// </returns>
     [HttpDelete]
-    [Authorize]
     [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
     [SwaggerResponse(Status400BadRequest, "A bad request response", typeof(ErrorResponse))]
-    public async Task<IActionResult> RemoveDentistAsync(int dentistId)
+    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action", typeof(ErrorResponse))]
+    [SwaggerResponse(Status404NotFound, "The dentist was not found", typeof(ErrorResponse))]
+    public async Task<IActionResult> RemoveDentistAsync(int dentistId, int? clinicId = null)
     {
         var user = await userManager.GetUserAsync(User);
-        if (user is null) return Unauthorized();
+        if (user is null)
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User not found." }]
+            });
+        }
 
-        if (!user.IsClinicAdmin) return Unauthorized("You are not authorized to perform this action.");
-        if (user.Clinic is null) return BadRequest("You must be associated with a clinic to remove a dentist.");
+        var clinic = clinicId is null ? user.Clinic : await db.Clinics.FirstOrDefaultAsync(c => c.Id == clinicId);
+        if (clinic is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "You are not associated with a clinic. Please provide a clinic ID if you are not associated with a clinic.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = [new ErrorDetail { PropertyName = nameof(clinicId), Message = "Clinic not found." }]
+            });
+        }
 
-        var dentist = user.Clinic.Dentists.FirstOrDefault(dentist => dentist.Id == dentistId);
-        if (dentist is null) return NotFound("The dentist was not found.");
+        if (clinic.Admins.All(x => x.Id != user.Id) && !await userManager.IsInRoleAsync(user, "Admin"))
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User is not a clinic admin." }]
+            });
+        }
 
-        user.Clinic.Dentists.Remove(dentist);
+        var dentist = clinic.Dentists.FirstOrDefault(dentist => dentist.Id == dentistId);
+        if (dentist is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "The dentist was not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = [new ErrorDetail { PropertyName = nameof(dentistId), Message = "Dentist not found." }]
+            });
+        }
+
+        clinic.Dentists.Remove(dentist);
         await userManager.UpdateAsync(user);
 
         return Ok(new BaseResponse { Message = "Dentist removed successfully!" });
@@ -473,16 +762,24 @@ public class ClinicController(
     ///     Asynchronously removes a user from the clinic admin role.
     /// </summary>
     /// <param name="userId">The user's unique identifier.</param>
+    /// <param name="clinicId">The clinic's unique identifier.</param>
     /// <returns>An IActionResult that represents the result of the RemoveUserFromClinicAdminAsync action.</returns>
     [HttpPost]
-    [Authorize]
-    [SwaggerResponse(Status200OK, "The user was successfully removed from the clinic admin role")]
-    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action")]
-    [SwaggerResponse(Status404NotFound, "The user or clinic was not found")]
-    public async Task<IActionResult> RemoveUserFromClinicAdminAsync(string userId)
+    [SwaggerResponse(Status200OK, "The user was successfully removed from the clinic admin role", typeof(BaseResponse))]
+    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action", typeof(ErrorResponse))]
+    [SwaggerResponse(Status404NotFound, "The user or clinic was not found", typeof(ErrorResponse))]
+    public async Task<IActionResult> RemoveUserFromClinicAdminAsync(string userId, int? clinicId = null)
     {
         var currentUser = await userManager.GetUserAsync(User);
-        if (currentUser is null || !currentUser.IsClinicAdmin) return Unauthorized();
+        if (currentUser is null)
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User is not a clinic admin." }]
+            });
+        }
 
         var user = await userManager.FindByIdAsync(userId);
         if (user is null)
@@ -491,58 +788,59 @@ public class ClinicController(
             {
                 Message = "The user was not found.",
                 StatusCode = HttpStatusCode.NotFound,
-                Details =
-                [
-                    new ErrorDetail
-                    {
-                        PropertyName = nameof(userId),
-                        Message = "The user was not found."
-                    }
-                ]
+                Details = [new ErrorDetail { PropertyName = nameof(userId), Message = "The user was not found." }]
             });
         }
 
-        var clinic = currentUser.Clinic;
+        var clinic = clinicId is null ? currentUser.Clinic : await db.Clinics.FirstOrDefaultAsync(c => c.Id == clinicId);
         if (clinic is null)
         {
-            return Unauthorized(new ErrorResponse
+            return NotFound(new ErrorResponse
             {
                 Message = "You are not associated with a clinic.",
                 StatusCode = HttpStatusCode.NotFound,
-                Details =
-                [
-                    new ErrorDetail
-                    {
-                        PropertyName = nameof(currentUser),
-                        Message = "You are not associated with a clinic."
-                    }
-                ]
+                Details = [new ErrorDetail { PropertyName = nameof(clinicId), Message = "Clinic not found." }]
             });
         }
 
-        if (clinic.Admins.All(x => x.Id != user.Id) || !await userManager.IsInRoleAsync(currentUser, "Admin"))
-            return Unauthorized();
+        if (clinic.Admins.All(x => x.Id != user.Id) && !await userManager.IsInRoleAsync(currentUser, "Admin"))
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to add this user to the clinic admin role.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User is not authorized." }]
+            });
+        }
 
         clinic.Admins.Remove(user);
         await db.SaveChangesAsync();
 
-        return Ok();
+        return Ok(new BaseResponse { Message = "User removed successfully!" });
     }
 
     /// <summary>
     ///     Asynchronously removes a user from the clinic admin role using the user's email.
     /// </summary>
     /// <param name="userEmail">The user's email.</param>
+    /// <param name="clinicId">The clinic's unique identifier.</param>
     /// <returns>An IActionResult that represents the result of the RemoveUserFromClinicAdminByEmailAsync action.</returns>
     [HttpPost]
-    [Authorize]
     [SwaggerResponse(Status200OK, "The user was successfully removed from the clinic admin role")]
-    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action")]
-    [SwaggerResponse(Status404NotFound, "The user or clinic was not found")]
-    public async Task<IActionResult> RemoveUserFromClinicAdminByEmailAsync(string userEmail)
+    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action", typeof(ErrorResponse))]
+    [SwaggerResponse(Status404NotFound, "The user or clinic was not found", typeof(ErrorResponse))]
+    public async Task<IActionResult> RemoveUserFromClinicAdminByEmailAsync(string userEmail, int? clinicId = null)
     {
         var currentUser = await userManager.GetUserAsync(User);
-        if (currentUser is null || !currentUser.IsClinicAdmin) return Unauthorized();
+        if (currentUser is null)
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User is not a clinic admin." }]
+            });
+        }
 
         var user = await userManager.FindByEmailAsync(userEmail);
         if (user is null)
@@ -551,58 +849,59 @@ public class ClinicController(
             {
                 Message = "The user was not found.",
                 StatusCode = HttpStatusCode.NotFound,
-                Details =
-                [
-                    new ErrorDetail
-                    {
-                        PropertyName = nameof(userEmail),
-                        Message = "The user was not found."
-                    }
-                ]
+                Details = [new ErrorDetail { PropertyName = nameof(userEmail), Message = "The user was not found." }]
             });
         }
 
-        var clinic = currentUser.Clinic;
+        var clinic = clinicId is null ? currentUser.Clinic : await db.Clinics.FirstOrDefaultAsync(c => c.Id == clinicId);
         if (clinic is null)
         {
-            return Unauthorized(new ErrorResponse
+            return NotFound(new ErrorResponse
             {
                 Message = "You are not associated with a clinic.",
                 StatusCode = HttpStatusCode.NotFound,
-                Details =
-                [
-                    new ErrorDetail
-                    {
-                        PropertyName = nameof(currentUser),
-                        Message = "You are not associated with a clinic."
-                    }
-                ]
+                Details = [new ErrorDetail { PropertyName = nameof(clinicId), Message = "Clinic not found." }]
             });
         }
 
-        if (clinic.Admins.All(x => x.Id != user.Id) || !await userManager.IsInRoleAsync(currentUser, "Admin"))
-            return Unauthorized();
+        if (clinic.Admins.All(x => x.Id != user.Id) && !await userManager.IsInRoleAsync(currentUser, "Admin"))
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to add this user to the clinic admin role.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User is not authorized." }]
+            });
+        }
 
         clinic.Admins.Remove(user);
         await db.SaveChangesAsync();
 
-        return Ok();
+        return Ok(new BaseResponse { Message = "User removed successfully!" });
     }
 
     /// <summary>
-    ///     Asynchronously creates a new clinic.
+    ///     Asynchronously updates a clinic.
     /// </summary>
     /// <param name="clinicId">The unique identifier of the clinic.</param>
     /// <param name="clinic">The clinic model that contains the clinic's information.</param>
-    /// <returns>An IActionResult that represents the result of the CreateClinic action.</returns>
-    [HttpPost]
-    [Authorize]
-    [SwaggerResponse(Status200OK, "The clinic was successfully created")]
-    [SwaggerResponse(Status500InternalServerError, "An exception was thrown")]
+    /// <returns>An IActionResult that represents the result of the UpdateClinic action.</returns>
+    [HttpPatch("{clinicId:int}")]
+    [SwaggerResponse(Status200OK, "The clinic was successfully updated")]
+    [SwaggerResponse(Status404NotFound, "The clinic was not found", typeof(ErrorResponse))]
+    [SwaggerResponse(Status500InternalServerError, "An exception was thrown", typeof(ErrorResponse))]
     public async Task<IActionResult> UpdateClinicAsync(int clinicId, ClinicEditRequest clinic)
     {
         var clinicEntity = await db.Clinics.FindAsync(clinicId);
-        if (clinicEntity is null) return NotFound();
+        if (clinicEntity is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "The clinic was not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = [new ErrorDetail { PropertyName = nameof(clinicId), Message = "Clinic not found." }]
+            });
+        }
 
         clinicEntity.Address = clinic.Address ?? clinicEntity.Address;
         clinicEntity.Description = clinic.Description ?? clinicEntity.Description;
@@ -616,7 +915,9 @@ public class ClinicController(
 
         await db.SaveChangesAsync();
 
-        return Ok();
+        var result = mapper.Map<ClinicModel>(clinicEntity);
+
+        return Ok(result);
     }
 
     /// <summary>
@@ -629,29 +930,65 @@ public class ClinicController(
     ///     If the update is successful, it returns an OkResult with a success message.
     ///     If the update fails, it returns a BadRequestObjectResult with an error message.
     /// </returns>
-    [HttpPut]
-    [Authorize]
-    [SwaggerResponse(Status200OK, "The dentist was successfully updated", typeof(BaseResponse))]
-    [SwaggerResponse(Status400BadRequest, "The user is not authorized to perform this action", typeof(ErrorResponse))]
+    [HttpPatch("{dentistId:int}")]
+    [SwaggerResponse(Status200OK, "The dentist was successfully updated", typeof(DentistModel))]
+    [SwaggerResponse(Status400BadRequest, "A bad request response", typeof(ErrorResponse))]
+    [SwaggerResponse(Status401Unauthorized, "The user is not authorized to perform this action", typeof(ErrorResponse))]
     [SwaggerResponse(Status404NotFound, "The dentist was not found", typeof(ErrorResponse))]
     public async Task<IActionResult> UpdateDentistAsync(int dentistId, UpdateDentistRequest request)
     {
         var user = await userManager.GetUserAsync(User);
-        if (user is null) return Unauthorized();
+        if (user is null)
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User not found." }]
+            });
+        }
 
-        if (!user.IsClinicAdmin) return Unauthorized("You are not authorized to perform this action.");
-        if (user.Clinic is null) return BadRequest("You must be associated with a clinic to update a dentist.");
+        var clinic = request.ClinicId is null ? user.Clinic : await db.Clinics.FirstOrDefaultAsync(c => c.Id == request.ClinicId);
+        if (clinic is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "You are not associated with a clinic. Please provide a clinic ID if you are not associated with a clinic.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = [new ErrorDetail { PropertyName = nameof(request.ClinicId), Message = "Clinic not found." }]
+            });
+        }
 
-        var dentist = user.Clinic.Dentists.FirstOrDefault(dentist => dentist.Id == dentistId);
-        if (dentist is null) return NotFound("The dentist was not found.");
+        if (clinic.Admins.All(x => x.Id != user.Id) && !await userManager.IsInRoleAsync(user, "Admin"))
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Message = "You are not authorized to perform this action.",
+                StatusCode = HttpStatusCode.Unauthorized,
+                Details = [new ErrorDetail { PropertyName = nameof(User), Message = "User is not a clinic admin." }]
+            });
+        }
+
+        var dentist = clinic.Dentists.FirstOrDefault(dentist => dentist.Id == dentistId);
+        if (dentist is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Message = "The dentist was not found.",
+                StatusCode = HttpStatusCode.NotFound,
+                Details = [new ErrorDetail { PropertyName = nameof(dentistId), Message = "Dentist not found." }]
+            });
+        }
 
         dentist.Email = request.Email ?? dentist.Email;
         dentist.Name = request.Name ?? dentist.Name;
         dentist.PhoneNumber = request.PhoneNumber ?? dentist.PhoneNumber;
 
-        await userManager.UpdateAsync(user);
+        await db.SaveChangesAsync();
 
-        return Ok(new BaseResponse { Message = "Dentist updated successfully!" });
+        var result = mapper.Map<DentistModel>(dentist);
+
+        return Ok(result);
     }
 
     private static int LevenshteinDistance(string source, string target)
