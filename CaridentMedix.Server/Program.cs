@@ -10,6 +10,7 @@ using CaridentMedix.Server.Models;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -185,6 +186,8 @@ try
         app.UseSwagger();
         app.UseSwaggerUI();
     }
+
+    app.UseRewriter(new RewriteOptions().AddRedirect("^$", "swagger"));
 
     app.MapControllers();
     app.UseStaticFiles();
