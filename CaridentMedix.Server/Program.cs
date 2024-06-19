@@ -52,6 +52,7 @@ try
 
         automapper.CreateMap<ApplicationUser, GetSelfResponse>().ReverseMap();
         automapper.CreateMap<ApplicationUser, AdminModel>().ReverseMap();
+        automapper.CreateMap<ApplicationUser, AppointmentUserModel>().ReverseMap();
         automapper.CreateMap<ApplicationUser, DataReportUserModel>().ReverseMap();
         automapper.CreateMap<Clinic, ClinicModel>().ReverseMap();
         automapper.CreateMap<Dentist, DentistModel>().ReverseMap();
