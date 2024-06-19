@@ -19,6 +19,8 @@ public class DataReportUserModel
 {
     public string Email { get; set; } = null!;
 
+    public string Id { get; set; } = null!;
+
     public string? ImagePath { get; set; }
 
     public string? Name { get; set; }

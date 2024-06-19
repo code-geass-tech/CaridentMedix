@@ -8,6 +8,8 @@ public class AdminModel
 
     public bool PhoneNumberConfirmed { get; set; }
 
+    public string Id { get; set; } = null!;
+
     public string? Email { get; set; }
 
     public string? ImagePath { get; set; }

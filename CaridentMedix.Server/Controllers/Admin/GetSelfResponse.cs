@@ -18,6 +18,8 @@ public class GetSelfResponse
 
     public int AccessFailedCount { get; set; }
 
+    public string Id { get; set; } = null!;
+
     public string? Email { get; set; }
 
     public string? ImagePath { get; set; }
