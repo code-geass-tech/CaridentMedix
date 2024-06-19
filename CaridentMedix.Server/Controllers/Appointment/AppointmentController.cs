@@ -355,19 +355,19 @@ public class AppointmentController(
     /// <summary>
     ///     This method is responsible for updating an appointment.
     /// </summary>
-    /// <param name="id">The id of the appointment to update.</param>
+    /// <param name="appointmentId">The id of the appointment to update.</param>
     /// <param name="request">A model containing the appointment's updated information.</param>
     /// <returns>
     ///     An IActionResult that represents the result of the UpdateAppointment action.
     ///     If the update is successful, it returns an OkResult with the appointment's information.
     ///     If the update fails, it returns a BadRequestObjectResult with the errors.
     /// </returns>
-    [HttpPatch]
+    [HttpPatch("{appointmentId:int}")]
     [Authorize]
     [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
     [SwaggerResponse(Status400BadRequest, "A bad request response", typeof(ErrorResponse))]
     [SwaggerResponse(Status401Unauthorized, "An unauthorized response", typeof(ErrorResponse))]
-    public async Task<IActionResult> UpdateAppointmentAsync(int id, UpdateAppointmentRequest request)
+    public async Task<IActionResult> UpdateAppointmentAsync(int appointmentId, UpdateAppointmentRequest request)
     {
         var user = await userManager.GetUserAsync(User);
         if (user is null)
@@ -390,7 +390,7 @@ public class AppointmentController(
         var appointment = await db.Appointments
            .Include(appointment => appointment.Clinic)
            .Include(appointment => appointment.Dentist)
-           .FirstOrDefaultAsync(appointment => appointment.Id == id)
+           .FirstOrDefaultAsync(appointment => appointment.Id == appointmentId)
            .ConfigureAwait(false);
 
         if (appointment is null)
@@ -404,7 +404,7 @@ public class AppointmentController(
                     new ErrorDetail
                     {
                         Message = "The appointment was not found",
-                        PropertyName = nameof(id)
+                        PropertyName = nameof(appointmentId)
                     }
                 ]
             });
