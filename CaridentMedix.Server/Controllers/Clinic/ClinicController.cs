@@ -415,8 +415,8 @@ public class ClinicController(
         }
 
         var result = clinic.Admins
-           .Select(mapper.Map<ApplicationUser>)
-           .OrderBy(admin => admin.UserName)
+           .Select(mapper.Map<AdminModel>)
+           .OrderBy(admin => admin.Email)
            .ToList();
 
         return Ok(result);
