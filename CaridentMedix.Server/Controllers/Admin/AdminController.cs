@@ -728,7 +728,7 @@ public class AdminController(
     ///     If the user is not found, it returns a NotFoundResult.
     ///     If the operation fails, it returns a BadRequestObjectResult with the errors.
     /// </returns>
-    [HttpPut]
+    [HttpPatch("{userId}")]
     [SwaggerResponse(Status200OK, "A success message", typeof(BaseResponse))]
     [SwaggerResponse(Status400BadRequest, "The operation failed", typeof(ErrorResponse))]
     [SwaggerResponse(Status404NotFound, "The user was not found", typeof(ErrorResponse))]
