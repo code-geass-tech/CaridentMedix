@@ -171,24 +171,9 @@ public class AppointmentController(
             });
         }
 
-        if (appointment.User.Id != user.Id)
-        {
-            return Unauthorized(new ErrorResponse
-            {
-                StatusCode = HttpStatusCode.Unauthorized,
-                Message = "The user is not authorized to delete the appointment",
-                Details =
-                [
-                    new ErrorDetail
-                    {
-                        Message = "The user is not authorized to delete the appointment",
-                        PropertyName = nameof(User)
-                    }
-                ]
-            });
-        }
-
-        if (appointment.Clinic is not null && appointment.Clinic.Admins.All(x => x.Id != user.Id))
+        if (appointment.User.Id != user.Id
+         && appointment.Clinic is not null
+         && appointment.Clinic.Admins.All(x => x.Id != user.Id))
         {
             return Unauthorized(new ErrorResponse
             {
