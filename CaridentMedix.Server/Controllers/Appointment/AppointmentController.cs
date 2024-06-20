@@ -188,24 +188,7 @@ public class AppointmentController(
             });
         }
 
-        if (appointment.Status != "Pending")
-        {
-            return BadRequest(new ErrorResponse
-            {
-                StatusCode = HttpStatusCode.BadRequest,
-                Message = "The appointment cannot be deleted",
-                Details =
-                [
-                    new ErrorDetail
-                    {
-                        Message = "The appointment cannot be deleted",
-                        PropertyName = nameof(appointment.Status)
-                    }
-                ]
-            });
-        }
-
-        if (appointment.User.Id != user.Id)
+        if (appointment.Clinic is not null && appointment.Clinic.Admins.All(x => x.Id != user.Id))
         {
             return Unauthorized(new ErrorResponse
             {
@@ -410,7 +393,7 @@ public class AppointmentController(
             });
         }
 
-        if (!string.IsNullOrEmpty(request.UserMessage) && appointment.User.Id != user.Id)
+        if (!string.IsNullOrEmpty(request.UserMessage) || !string.IsNullOrEmpty(request.UserCancelMessage) && appointment.User.Id != user.Id)
         {
             return Unauthorized(new ErrorResponse
             {
@@ -439,23 +422,6 @@ public class AppointmentController(
                     {
                         Message = "The user is not authorized to update the appointment",
                         PropertyName = nameof(User)
-                    }
-                ]
-            });
-        }
-
-        if (appointment.Status != "Pending")
-        {
-            return BadRequest(new ErrorResponse
-            {
-                StatusCode = HttpStatusCode.BadRequest,
-                Message = "The appointment cannot be updated",
-                Details =
-                [
-                    new ErrorDetail
-                    {
-                        Message = "The appointment cannot be updated",
-                        PropertyName = nameof(appointment.Status)
                     }
                 ]
             });
