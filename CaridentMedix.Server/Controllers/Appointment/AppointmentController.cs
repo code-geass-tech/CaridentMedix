@@ -415,7 +415,9 @@ public class AppointmentController(
         appointment.ScheduledAt = request.ScheduledAt?.ToUniversalTime() ?? appointment.ScheduledAt;
         appointment.Status = request.Status ?? appointment.Status;
         appointment.ClinicMessage = request.ClinicMessage ?? appointment.ClinicMessage;
+        appointment.ClinicCancelMessage = request.ClinicCancelMessage ?? appointment.ClinicCancelMessage;
         appointment.UserMessage = request.UserMessage ?? appointment.UserMessage;
+        appointment.UserCancelMessage = request.UserCancelMessage ?? appointment.UserCancelMessage;
 
         await db.SaveChangesAsync();
 
